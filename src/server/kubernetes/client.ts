@@ -86,5 +86,5 @@ export class KubernetesClient {
 
 // Export a singleton instance with the project's kubeconfig
 export const kubernetesClient = new KubernetesClient(
-  path.join(process.cwd(), 'kubeconfig', 'Mykubeconfig')
+  path.join(process.cwd(), 'kubeconfig', 'hzh-kubeconfig')
 );

@@ -6,8 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start:server": "node dist/server/index.js",
+    "start:http": "node dist/server/http-server.js",
     "start:client": "node dist/client/index.js",
     "dev:server": "ts-node src/server/index.js",
+    "dev:http": "ts-node src/server/http-server.ts",
     "dev:client": "ts-node src/client/index.ts",
     "watch": "tsc --watch"
   },
@@ -21,17 +23,18 @@
   "author": "Sealos SRE Team",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
     "@kubernetes/client-node": "^0.20.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.4.5",
     "ssh2": "^1.15.0",
-    "zod": "^3.22.4",
-    "dotenv": "^16.4.5"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^20.0.0",
     "@types/ssh2": "^1.15.0",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=18.0.0"

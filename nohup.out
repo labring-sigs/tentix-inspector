@@ -1,0 +1,18 @@
+
+> sealos-sre-agent@2.6.0 start:http
+> node dist/server/http-server.js
+
+[HTTP Server] Initializing Sealos SRE Agent HTTP Service...
+[HTTP Server] Available zones: hzh, bja, gzg, default
+[HTTP Server] Server is running on http://localhost:3000
+[HTTP Server] API documentation: http://localhost:3000/api
+[HTTP Server] Health check: http://localhost:3000/health
+[HTTP Server] Ready to accept requests
+[HTTP] Using zone: hzh -> /home/devbox/project/kubeconfig/hzh-kubeconfig
+[Server] Executing: kubectl get quota -n ns-mh69tey1
+[HTTP] Using zone: hzh -> /home/devbox/project/kubeconfig/hzh-kubeconfig
+[Server] Executing: kubectl get devbox -n ns-mh69tey1
+[HTTP] Using zone: hzh -> /home/devbox/project/kubeconfig/hzh-kubeconfig
+[Server] Executing: kubectl get pods -n ns-mh69tey1
+[HTTP] Using zone: hzh -> /home/devbox/project/kubeconfig/hzh-kubeconfig
+[Server] Executing: kubectl get devbox -n ns-mh69tey1
