@@ -1,5 +1,5 @@
 import { ListPodsByNsInput, ListPodsByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { PodInfo, ListPodsResponse, KubernetesError } from '../kubernetes/types';
 import * as k8s from '@kubernetes/client-node';
 
@@ -50,7 +50,10 @@ function extractKubernetesError(error: any): KubernetesError {
   };
 }
 
-export async function listPodsByNamespace(input: ListPodsByNsInput): Promise<ListPodsResponse> {
+export async function listPodsByNamespace(
+  client: KubernetesClient,
+  input: ListPodsByNsInput
+): Promise<ListPodsResponse> {
   // Validate input
   const validatedInput = ListPodsByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -59,7 +62,7 @@ export async function listPodsByNamespace(input: ListPodsByNsInput): Promise<Lis
   console.error(`[Server] Executing: kubectl get pods -n ${namespace}`);
 
   try {
-    const k8sApi = kubernetesClient.getApiClient();
+    const k8sApi = client.getApiClient();
 
     // List pods in the specified namespace
     const podList = await k8sApi.listNamespacedPod(namespace);

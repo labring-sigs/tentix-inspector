@@ -1,5 +1,5 @@
 import { ListCertificateByNsInput, ListCertificateByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListCertificateResponse } from '../kubernetes/types';
 
 /**
@@ -84,14 +84,17 @@ function extractKubernetesError(error: any): KubernetesError {
   };
 }
 
-export async function listCertificateByNamespace(input: ListCertificateByNsInput): Promise<ListCertificateResponse> {
+export async function listCertificateByNamespace(
+  client: KubernetesClient,
+  input: ListCertificateByNsInput
+): Promise<ListCertificateResponse> {
   const validatedInput = ListCertificateByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
 
   console.error(`[Server] Executing: kubectl get certificates -n ${namespace}`);
 
   try {
-    const customObjectsApi = kubernetesClient.getCustomObjectsApi();
+    const customObjectsApi = client.getCustomObjectsApi();
 
     const certificateList = await customObjectsApi.listNamespacedCustomObject(
       'cert-manager.io',  // group

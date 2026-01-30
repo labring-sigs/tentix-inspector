@@ -1,5 +1,5 @@
 import { ListEventsByNsInput, ListEventsByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListEventsResponse } from '../kubernetes/types';
 
 /**
@@ -49,7 +49,10 @@ function extractKubernetesError(error: any): KubernetesError {
   };
 }
 
-export async function listEventsByNamespace(input: ListEventsByNsInput): Promise<ListEventsResponse> {
+export async function listEventsByNamespace(
+  client: KubernetesClient,
+  input: ListEventsByNsInput
+): Promise<ListEventsResponse> {
   // Validate input
   const validatedInput = ListEventsByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -58,7 +61,7 @@ export async function listEventsByNamespace(input: ListEventsByNsInput): Promise
   console.error(`[Server] Executing: kubectl get events -n ${namespace} --sort-by='.lastTimestamp'`);
 
   try {
-    const k8sApi = kubernetesClient.getApiClient();
+    const k8sApi = client.getApiClient();
 
     // List Event resources in the specified namespace
     const eventList = await k8sApi.listNamespacedEvent(namespace);

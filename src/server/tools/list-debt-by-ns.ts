@@ -1,5 +1,5 @@
 import { ListDebtByNsInput, ListDebtByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListDebtResponse, DebtStatus } from '../kubernetes/types';
 
 /**
@@ -70,7 +70,10 @@ function calculateAge(creationTimestamp: Date): string {
   return `${minutes}m`;
 }
 
-export async function listDebtByNamespace(input: ListDebtByNsInput): Promise<ListDebtResponse> {
+export async function listDebtByNamespace(
+  client: KubernetesClient,
+  input: ListDebtByNsInput
+): Promise<ListDebtResponse> {
   // Validate input
   const validatedInput = ListDebtByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -79,7 +82,7 @@ export async function listDebtByNamespace(input: ListDebtByNsInput): Promise<Lis
   console.error(`[Server] Executing: kubectl get debts -n ${namespace}`);
 
   try {
-    const customObjectsApi = kubernetesClient.getCustomObjectsApi();
+    const customObjectsApi = client.getCustomObjectsApi();
 
     // List Debt CRD resources in the specified namespace
     const debtList = await customObjectsApi.listNamespacedCustomObject(

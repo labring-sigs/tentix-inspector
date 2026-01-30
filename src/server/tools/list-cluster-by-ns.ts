@@ -1,14 +1,14 @@
 import { ListClusterByNsInput, ListClusterByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 
-export async function listClusterByNamespace(input: ListClusterByNsInput) {
+export async function listClusterByNamespace(client: KubernetesClient, input: ListClusterByNsInput) {
   const validatedInput = ListClusterByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
 
   console.error(`[Server] Executing: kubectl get cluster -n ${namespace}`);
 
   try {
-    const customObjectsApi = kubernetesClient.getCustomObjectsApi();
+    const customObjectsApi = client.getCustomObjectsApi();
 
     const response = await customObjectsApi.listNamespacedCustomObject(
       'apps.kubeblocks.io',  // group

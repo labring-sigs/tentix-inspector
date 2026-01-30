@@ -1,5 +1,5 @@
 import { ListIngressByNsInput, ListIngressByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListIngressResponse } from '../kubernetes/types';
 import * as k8s from '@kubernetes/client-node';
 
@@ -71,7 +71,10 @@ function calculateAge(creationTimestamp: Date): string {
   return `${minutes}m`;
 }
 
-export async function listIngressByNamespace(input: ListIngressByNsInput): Promise<ListIngressResponse> {
+export async function listIngressByNamespace(
+  client: KubernetesClient,
+  input: ListIngressByNsInput
+): Promise<ListIngressResponse> {
   // Validate input
   const validatedInput = ListIngressByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -80,7 +83,7 @@ export async function listIngressByNamespace(input: ListIngressByNsInput): Promi
   console.error(`[Server] Executing: kubectl get ingress -n ${namespace}`);
 
   try {
-    const networkingV1Api = kubernetesClient.getNetworkingV1Api();
+    const networkingV1Api = client.getNetworkingV1Api();
 
     // List Ingress resources in the specified namespace
     const ingressList = await networkingV1Api.listNamespacedIngress(namespace);

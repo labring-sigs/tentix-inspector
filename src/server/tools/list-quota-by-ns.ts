@@ -1,5 +1,5 @@
 import { ListQuotaByNsInput, ListQuotaByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError } from '../kubernetes/types';
 import * as k8s from '@kubernetes/client-node';
 
@@ -50,7 +50,7 @@ function extractKubernetesError(error: any): KubernetesError {
   };
 }
 
-export async function listQuotaByNamespace(input: ListQuotaByNsInput) {
+export async function listQuotaByNamespace(client: KubernetesClient, input: ListQuotaByNsInput) {
   // Validate input
   const validatedInput = ListQuotaByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -59,7 +59,7 @@ export async function listQuotaByNamespace(input: ListQuotaByNsInput) {
   console.error(`[Server] Executing: kubectl get quota -n ${namespace}`);
 
   try {
-    const k8sApi = kubernetesClient.getApiClient();
+    const k8sApi = client.getApiClient();
 
     // List resource quotas in the specified namespace
     const quotaList = await k8sApi.listNamespacedResourceQuota(namespace);

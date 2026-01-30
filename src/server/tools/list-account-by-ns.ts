@@ -1,5 +1,5 @@
 import { ListAccountByNsInput, ListAccountByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListAccountResponse, AccountStatus } from '../kubernetes/types';
 
 /**
@@ -70,7 +70,10 @@ function calculateAge(creationTimestamp: Date): string {
   return `${minutes}m`;
 }
 
-export async function listAccountByNamespace(input: ListAccountByNsInput): Promise<ListAccountResponse> {
+export async function listAccountByNamespace(
+  client: KubernetesClient,
+  input: ListAccountByNsInput
+): Promise<ListAccountResponse> {
   // Validate input
   const validatedInput = ListAccountByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -79,7 +82,7 @@ export async function listAccountByNamespace(input: ListAccountByNsInput): Promi
   console.error(`[Server] Executing: kubectl get accounts -n ${namespace}`);
 
   try {
-    const customObjectsApi = kubernetesClient.getCustomObjectsApi();
+    const customObjectsApi = client.getCustomObjectsApi();
 
     // List Account CRD resources in the specified namespace
     const accountList = await customObjectsApi.listNamespacedCustomObject(

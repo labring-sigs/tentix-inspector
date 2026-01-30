@@ -1,5 +1,5 @@
 import { ListCronjobsByNsInput, ListCronjobsByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListCronJobsResponse } from '../kubernetes/types';
 import * as k8s from '@kubernetes/client-node';
 
@@ -71,7 +71,10 @@ function calculateAge(creationTimestamp: Date): string {
   return `${minutes}m`;
 }
 
-export async function listCronjobsByNamespace(input: ListCronjobsByNsInput): Promise<ListCronJobsResponse> {
+export async function listCronjobsByNamespace(
+  client: KubernetesClient,
+  input: ListCronjobsByNsInput
+): Promise<ListCronJobsResponse> {
   // Validate input
   const validatedInput = ListCronjobsByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
@@ -80,7 +83,7 @@ export async function listCronjobsByNamespace(input: ListCronjobsByNsInput): Pro
   console.error(`[Server] Executing: kubectl get cronjobs -n ${namespace}`);
 
   try {
-    const batchV1Api = kubernetesClient.getBatchV1Api();
+    const batchV1Api = client.getBatchV1Api();
 
     // List CronJob resources in the specified namespace
     const cronjobList = await batchV1Api.listNamespacedCronJob(namespace);

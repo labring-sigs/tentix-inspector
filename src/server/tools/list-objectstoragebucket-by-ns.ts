@@ -1,5 +1,5 @@
 import { ListObjectStorageBucketByNsInput, ListObjectStorageBucketByNsInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListObjectStorageBucketResponse } from '../kubernetes/types';
 
 /**
@@ -64,14 +64,17 @@ function extractKubernetesError(error: any): KubernetesError {
   };
 }
 
-export async function listObjectStorageBucketByNamespace(input: ListObjectStorageBucketByNsInput): Promise<ListObjectStorageBucketResponse> {
+export async function listObjectStorageBucketByNamespace(
+  client: KubernetesClient,
+  input: ListObjectStorageBucketByNsInput
+): Promise<ListObjectStorageBucketResponse> {
   const validatedInput = ListObjectStorageBucketByNsInputSchema.parse(input);
   const { namespace } = validatedInput;
 
   console.error(`[Server] Executing: kubectl get objectstoragebuckets -n ${namespace}`);
 
   try {
-    const customObjectsApi = kubernetesClient.getCustomObjectsApi();
+    const customObjectsApi = client.getCustomObjectsApi();
 
     const objectstoragebucketList = await customObjectsApi.listNamespacedCustomObject(
       'objectstorage.sealos.io',  // group

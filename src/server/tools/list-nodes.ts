@@ -1,5 +1,5 @@
 import { ListNodesInput, ListNodesInputSchema } from './types';
-import { kubernetesClient } from '../kubernetes/client';
+import { KubernetesClient } from '../kubernetes/client';
 import { KubernetesError, ListNodesResponse } from '../kubernetes/types';
 import * as k8s from '@kubernetes/client-node';
 
@@ -71,7 +71,10 @@ function calculateAge(creationTimestamp: Date): string {
   return `${minutes}m`;
 }
 
-export async function listNodes(input: ListNodesInput): Promise<ListNodesResponse> {
+export async function listNodes(
+  client: KubernetesClient,
+  input: ListNodesInput
+): Promise<ListNodesResponse> {
   // Validate input (namespace is ignored for nodes)
   ListNodesInputSchema.parse(input);
 
@@ -79,7 +82,7 @@ export async function listNodes(input: ListNodesInput): Promise<ListNodesRespons
   console.error(`[Server] Executing: kubectl get nodes`);
 
   try {
-    const k8sApi = kubernetesClient.getApiClient();
+    const k8sApi = client.getApiClient();
 
     // List all nodes in the cluster (cluster-level resource)
     const nodeList = await k8sApi.listNode();
