@@ -242,8 +242,13 @@ async function executorNode(state: AgentState): Promise<Partial<AgentState>> {
     throw new Error(`[Agent] Unknown tool: ${String(state.selectedTool)}`);
   }
 
-  const defaultInput = selectedTool === 'list_nodes' ? {} : { namespace: state.namespace };
-  const input = (state.toolInput ?? defaultInput) as unknown;
+  // 不信任 LLM/toolInput 里的 namespace；最终执行强制使用 state.namespace
+  const rawToolInput = state.toolInput;
+  const toolInputObject =
+    rawToolInput && typeof rawToolInput === 'object' && !Array.isArray(rawToolInput)
+      ? (rawToolInput as Record<string, unknown>)
+      : {};
+  const input: unknown = selectedTool === 'list_nodes' ? {} : { ...toolInputObject, namespace: state.namespace };
 
   const result = await tool.run(state.k8sClient, input);
 

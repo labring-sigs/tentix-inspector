@@ -1,3 +1,4 @@
+//本文件已弃用，可以忽略
 import { InspectResourceInput, InspectResourceInputSchema } from './types';
 import { kubernetesClient } from '../kubernetes/client';
 import { KubernetesError } from '../kubernetes/types';

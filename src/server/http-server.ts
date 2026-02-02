@@ -27,11 +27,9 @@ function pickQueryString(value: unknown): string | undefined {
 app.post('/api/skills', async (req: Request, res: Response) => {
   try {
     const body = SkillsPayloadSchema.parse(req.body ?? {});
-    const zoneFromQuery = pickQueryString(req.query.zone);
-    const namespaceFromQuery = pickQueryString(req.query.namespace);
-
-    const zone = (body.zone ?? zoneFromQuery ?? 'default').trim();
-    const namespace = (body.namespace ?? namespaceFromQuery ?? '').trim();
+    // zone/namespace 只认 URL query；body 里同名字段一律忽略
+    const zone = (pickQueryString(req.query.zone) ?? '').trim();
+    const namespace = (pickQueryString(req.query.namespace) ?? '').trim();
 
     if (!zone) {
       return res.status(400).json({ error: 'zone is required' });
