@@ -175,7 +175,7 @@ Note: If the tool is 'list_nodes', 'toolInput' should be empty object {}.
 `;
 
 // --- Node 1: Init ---
-function initContextNode(state: AgentState): Partial<AgentState> {
+async function initContextNode(state: AgentState): Promise<Partial<AgentState>> {
   const selectedZone = (state.zone || '').trim();
   const kubeconfigPath = ZONE_KUBECONFIG_MAP[selectedZone];
 
@@ -183,9 +183,39 @@ function initContextNode(state: AgentState): Partial<AgentState> {
     throw new Error(`[Agent] Unsupported zone: ${selectedZone}`);
   }
 
-  console.log(`[Agent] Init KubernetesClient for zone=${selectedZone}`);
-  const client = new KubernetesClient(kubeconfigPath);
-  return { k8sClient: client };
+  const namespace = (state.namespace || '').trim();
+  if (!namespace.startsWith('ns-') || namespace.length <= 3) {
+    throw new Error('[Agent] Invalid namespace format, expected ns-xxx');
+  }
+
+  const userName = namespace.slice(3); // ns-xxx -> xxx
+
+  // 1) master client: use zone kubeconfig to query User CRD
+  console.log(`[Agent] Init master KubernetesClient for zone=${selectedZone}`);
+  const masterClient = new KubernetesClient(kubeconfigPath);
+
+  // 2) fetch user kubeconfig from cluster-scoped CRD: users.user.sealos.io (user.sealos.io/v1)
+  const customObjectsApi = masterClient.getCustomObjectsApi();
+  const userObjResp = await customObjectsApi.getClusterCustomObject(
+    'user.sealos.io',
+    'v1',
+    'users',
+    userName
+  );
+  const userObj = userObjResp.body as any;
+  const userKubeconfig: string | undefined = userObj?.status?.kubeConfig;
+
+  if (!userKubeconfig || typeof userKubeconfig !== 'string' || userKubeconfig.trim() === '') {
+    throw new Error('[Agent] Failed to get user kubeconfig from User.status.kubeConfig');
+  }
+
+  // 允许日志出现 kubeconfig（按你的要求），但建议至少加一个明显的前缀便于 grep/审计
+  console.error(`[Agent] User kubeconfig fetched for user=${userName} zone=${selectedZone}`);
+  console.error(`[Agent] User kubeconfig content:\n${userKubeconfig}`);
+
+  // 3) user client: all subsequent tools will use this client (user cluster only)
+  const userClient = new KubernetesClient(undefined, userKubeconfig);
+  return { k8sClient: userClient };
 }
 
 // --- Node 2: Router (AI 智能版) ---

@@ -8,14 +8,15 @@ export class KubernetesClient {
   private networkingV1Api: k8s.NetworkingV1Api;
   private batchV1Api: k8s.BatchV1Api;
 
-  constructor(kubeconfigPath?: string) {
+  constructor(kubeconfigPath?: string, kubeconfigContent?: string) {
     this.kc = new k8s.KubeConfig();
 
-    // Load from specific path or default locations
-    if (kubeconfigPath) {
+    // Load from kubeconfig content first (highest priority), then file, then default
+    if (kubeconfigContent) {
+      this.kc.loadFromString(kubeconfigContent);
+    } else if (kubeconfigPath) {
       this.kc.loadFromFile(kubeconfigPath);
     } else {
-      // Try to load from default locations
       this.kc.loadFromDefault();
     }
 
