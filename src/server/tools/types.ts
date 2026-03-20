@@ -138,6 +138,16 @@ export const LIST_NODES_TOOL = {
   },
 };
 
+export const NONE_TOOL = {
+  name: 'none',
+  description: 'Return a fixed message only when the current user input clearly does not require any cluster query',
+  inputSchema: {
+    type: 'object',
+    properties: {},
+    required: [],
+  },
+};
+
 // ============================================================================
 // 工具组 3：按 namespace 列出 Kubernetes 原生资源（续）
 // ============================================================================
