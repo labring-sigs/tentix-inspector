@@ -19,6 +19,7 @@ import {
   LIST_DEBT_BY_NS_TOOL,
   LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL,
   LIST_CERTIFICATE_BY_NS_TOOL,
+  NONE_TOOL,
 } from '../tools/types';
 
 import { listPodsByNamespace } from '../tools/list-pods-by-ns';
@@ -33,6 +34,7 @@ import { listAccountByNamespace } from '../tools/list-account-by-ns';
 import { listDebtByNamespace } from '../tools/list-debt-by-ns';
 import { listObjectStorageBucketByNamespace } from '../tools/list-objectstoragebucket-by-ns';
 import { listCertificateByNamespace } from '../tools/list-certificate-by-ns';
+import { returnNoneResult } from '../tools/none-tool';
 
 // --- A. 初始化 AI 模型 (Gemini) ---
 const AI_API_KEY = process.env.AI_API_KEY;
@@ -146,6 +148,14 @@ const TOOLS = {
     run: (client: KubernetesClient, input: unknown) =>
       listCertificateByNamespace(client, input as any),
   },
+  [NONE_TOOL.name]: {
+    description: NONE_TOOL.description,
+    run: (client: KubernetesClient, input: unknown) => {
+      void client;
+      void input;
+      return returnNoneResult();
+    },
+  },
 } as const;
 
 type ToolName = keyof typeof TOOLS;
@@ -162,6 +172,11 @@ Your job is to select the BEST tool based on the user's ticket description.
 Available Tools:
 ${GENERATED_TOOLS_DESC}
 
+Tool Selection Rules:
+- Prioritize Latest Message when deciding whether the current user reply needs a cluster query right now.
+- If the current user reply is only a greeting, acknowledgement, thanks, filler, or otherwise does not require any Kubernetes/cluster/namespace resource query, select "none".
+- If the user is clearly asking to inspect, list, check, or troubleshoot cluster resources, do not select "none".
+
 Output Format:
 You MUST return a strictly valid JSON object. No markdown.
 Structure:
@@ -171,7 +186,7 @@ Structure:
     "namespace": "extracted_namespace_from_context_or_default"
   }
 }
-Note: If the tool is 'list_nodes', 'toolInput' should be empty object {}.
+Note: If the tool is 'none', 'toolInput' should be empty object {}.
 `;
 
 // --- Node 1: Init ---
@@ -213,9 +228,14 @@ async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
     // 清理 JSON 格式 (Gemini 喜欢加 \`\`\`json)
     const cleanedContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
     const decision = JSON.parse(cleanedContent);
+    const selectedTool = typeof decision.selectedTool === 'string' ? decision.selectedTool : '';
+
+    if (!Object.prototype.hasOwnProperty.call(TOOLS, selectedTool)) {
+      throw new Error(`[Router] AI selected unsupported tool: ${selectedTool}`);
+    }
 
     return {
-      selectedTool: decision.selectedTool,
+      selectedTool: selectedTool as ToolName,
       toolInput: decision.toolInput || {}
     };
 
@@ -248,7 +268,10 @@ async function executorNode(state: AgentState): Promise<Partial<AgentState>> {
     rawToolInput && typeof rawToolInput === 'object' && !Array.isArray(rawToolInput)
       ? (rawToolInput as Record<string, unknown>)
       : {};
-  const input: unknown = selectedTool === 'list_nodes' ? {} : { ...toolInputObject, namespace: state.namespace };
+  const input: unknown =
+    selectedTool === 'none'
+      ? {}
+      : { ...toolInputObject, namespace: state.namespace };
 
   const result = await tool.run(state.k8sClient, input);
 
