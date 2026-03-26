@@ -43,3 +43,5 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+AGENTS.md
+skills.md
