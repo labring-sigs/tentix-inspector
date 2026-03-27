@@ -200,29 +200,7 @@ export const LIST_EVENTS_BY_NS_TOOL = {
 // 工具组 4：按 namespace 列出 CRD 资源
 // ============================================================================
 
-// 10) Account CRD - 与 Pod 工具结构完全相同
-export const ListAccountByNsInputSchema = z.object({
-  namespace: z.string().min(1, 'Namespace is required'),
-});
-
-export type ListAccountByNsInput = z.infer<typeof ListAccountByNsInputSchema>;
-
-export const LIST_ACCOUNT_BY_NS_TOOL = {
-  name: 'list_account_by_ns',
-  description: 'List Account CRD resources in a specific namespace',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      namespace: {
-        type: 'string',
-        description: 'The namespace to list Account CRD resources from',
-      },
-    },
-    required: ['namespace'],
-  },
-};
-
-// 11) Debt CRD - 与 Pod 工具结构完全相同
+// 10) Debt CRD - 与 Pod 工具结构完全相同
 export const ListDebtByNsInputSchema = z.object({
   namespace: z.string().min(1, 'Namespace is required'),
 });
@@ -244,7 +222,7 @@ export const LIST_DEBT_BY_NS_TOOL = {
   },
 };
 
-// 12) ObjectStorageBucket CRD - 与 Pod 工具结构完全相同
+// 11) ObjectStorageBucket CRD - 与 Pod 工具结构完全相同
 export const ListObjectStorageBucketByNsInputSchema = z.object({
   namespace: z.string().min(1, 'Namespace is required'),
 });
@@ -266,7 +244,7 @@ export const LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL = {
   },
 };
 
-// 13) Certificate CRD - 与 Pod 工具结构完全相同
+// 12) Certificate CRD - 与 Pod 工具结构完全相同
 export const ListCertificateByNsInputSchema = z.object({
   namespace: z.string().min(1, 'Namespace is required'),
 });
@@ -292,7 +270,7 @@ export const LIST_CERTIFICATE_BY_NS_TOOL = {
 // 工具组 5：通用资源检查工具（inspect）
 // ============================================================================
 
-// 14) InspectResource - 唯一的多参数工具：支持资源类型、名称、namespace、可选行数
+// 13) InspectResource - 唯一的多参数工具：支持资源类型、名称、namespace、可选行数
 //    为什么要增加 resource/name：需要精确定位某个具体资源（不是列出所有）
 //    为什么要增加 lines：控制日志输出量（只针对 Pod 资源有效）
 export const InspectResourceInputSchema = z.object({

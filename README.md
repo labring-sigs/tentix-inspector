@@ -148,7 +148,6 @@ HTTP Agent 侧注册列表以 `src/server/agent/graph.ts` 为准：
 - `list_ingress_by_ns`
 - `list_cronjobs_by_ns`
 - `list_events_by_ns`
-- `list_account_by_ns`
 - `list_debt_by_ns`
 - `list_objectstoragebucket_by_ns`
 - `list_certificate_by_ns`

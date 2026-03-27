@@ -15,7 +15,6 @@ import {
   // LIST_NODES_TOOL,
   LIST_CRONJOBS_BY_NS_TOOL,
   LIST_EVENTS_BY_NS_TOOL,
-  LIST_ACCOUNT_BY_NS_TOOL,
   LIST_DEBT_BY_NS_TOOL,
   LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL,
   LIST_CERTIFICATE_BY_NS_TOOL,
@@ -30,7 +29,6 @@ import { listIngressByNamespace } from '../tools/list-ingress-by-ns';
 // import { listNodes } from '../tools/list-nodes';
 import { listCronjobsByNamespace } from '../tools/list-cronjobs-by-ns';
 import { listEventsByNamespace } from '../tools/list-events-by-ns';
-import { listAccountByNamespace } from '../tools/list-account-by-ns';
 import { listDebtByNamespace } from '../tools/list-debt-by-ns';
 import { listObjectStorageBucketByNamespace } from '../tools/list-objectstoragebucket-by-ns';
 import { listCertificateByNamespace } from '../tools/list-certificate-by-ns';
@@ -129,10 +127,6 @@ const TOOLS = {
   [LIST_EVENTS_BY_NS_TOOL.name]: {
     description: LIST_EVENTS_BY_NS_TOOL.description,
     run: (client: KubernetesClient, input: unknown) => listEventsByNamespace(client, input as any),
-  },
-  [LIST_ACCOUNT_BY_NS_TOOL.name]: {
-    description: LIST_ACCOUNT_BY_NS_TOOL.description,
-    run: (client: KubernetesClient, input: unknown) => listAccountByNamespace(client, input as any),
   },
   [LIST_DEBT_BY_NS_TOOL.name]: {
     description: LIST_DEBT_BY_NS_TOOL.description,
