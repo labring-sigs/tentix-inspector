@@ -76,6 +76,7 @@ export interface AgentState {
   namespace: string;
   ticketTitle: string;
   ticketModule: string;
+  ticketCategory: string;
   ticketDescription: string;
   historyMessages: string;
   latestMessage: string;
@@ -171,6 +172,40 @@ const TOOLS = {
 
 type ToolName = keyof typeof TOOLS;
 
+type RouterMessageContentItem =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+function buildRouterUserContext(state: AgentState): string {
+  return `
+    User Context:
+    - Default Namespace: ${state.namespace}
+    - Ticket Title: ${state.ticketTitle}
+    - Ticket Module: ${state.ticketModule}
+    - Ticket Category: ${state.ticketCategory}
+    - Ticket Description: ${state.ticketDescription}
+    - History Messages: ${state.historyMessages}
+    - Latest Message: ${state.latestMessage}
+  `;
+}
+
+function buildRouterUserContent(state: AgentState): string | RouterMessageContentItem[] {
+  const userContext = buildRouterUserContext(state);
+  const imageUrls = Array.from(new Set(state.latestMessageImages.filter(Boolean))).slice(-6);
+
+  if (imageUrls.length === 0) {
+    return userContext;
+  }
+
+  return [
+    { type: 'text', text: userContext },
+    ...imageUrls.map((url) => ({
+      type: 'image_url' as const,
+      image_url: { url },
+    })),
+  ];
+}
+
 // 自动生成 AI Prompt (无需手动维护两份列表)
 const GENERATED_TOOLS_DESC = Object.entries(TOOLS)
   .map(([name, tool], index) => `${index + 1}. ${name}: ${tool.description}`)
@@ -248,26 +283,22 @@ async function initContextNode(state: AgentState): Promise<Partial<AgentState>> 
 async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
   console.log(`[Router] Asking AI (${AI_MODEL}) to select tool...`);
 
-  const userContext = `
-    User Context:
-    - Default Namespace: ${state.namespace}
-    - Ticket Title: ${state.ticketTitle}
-    - Ticket Description: ${state.ticketDescription}
-    - Latest Message: ${state.latestMessage}
-  `;
+  const userContext = buildRouterUserContext(state);
+  const routerUserContent = buildRouterUserContent(state);
 
-  try {
-    // 调用 Gemini
+  async function invokeRouter(content: string | RouterMessageContentItem[]) {
     const response = await llm.invoke([
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userContext }
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: content as any }
     ]);
 
-    const content = response.content as string;
-    console.log("[Router] AI raw response:", content);
+    const rawContent =
+      typeof response.content === 'string'
+        ? response.content
+        : JSON.stringify(response.content);
+    console.log('[Router] AI raw response:', rawContent);
 
-    // 清理 JSON 格式 (Gemini 喜欢加 \`\`\`json)
-    const cleanedContent = content.replace(/```json/g, "").replace(/```/g, "").trim();
+    const cleanedContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
     const decision = JSON.parse(cleanedContent);
     const selectedTool = typeof decision.selectedTool === 'string' ? decision.selectedTool : '';
 
@@ -279,7 +310,18 @@ async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
       selectedTool: selectedTool as ToolName,
       toolInput: decision.toolInput || {}
     };
+  }
 
+  try {
+    if (Array.isArray(routerUserContent)) {
+      try {
+        return await invokeRouter(routerUserContent);
+      } catch (visionError) {
+        console.error('[Router] Vision routing failed, falling back to text routing', visionError);
+      }
+    }
+
+    return await invokeRouter(userContext);
   } catch (error) {
     console.error("[Router] AI parsing failed, falling back to list_pods", error);
     // 兜底逻辑
@@ -342,6 +384,7 @@ export async function getAgentRunnable(): Promise<AgentRunnable> {
     namespace: Annotation(),
     ticketTitle: Annotation(),
     ticketModule: Annotation(),
+    ticketCategory: Annotation(),
     ticketDescription: Annotation(),
     historyMessages: Annotation(),
     latestMessage: Annotation(),
