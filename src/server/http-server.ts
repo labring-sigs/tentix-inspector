@@ -103,6 +103,11 @@ app.post('/api/skills', async (req: Request, res: Response) => {
     const runnable = await getAgentRunnable();
     const finalState = await runnable.invoke(initialState);
     const finalResult = finalState.finalResult ?? null;
+
+    if (isRecord(finalResult) && finalResult.tool === 'none') {
+      return res.status(204).end();
+    }
+
     const status = getSkillsResponseStatus(finalResult);
 
     res.status(status).json(finalResult);
