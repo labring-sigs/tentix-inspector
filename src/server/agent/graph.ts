@@ -12,7 +12,6 @@ import {
   LIST_CLUSTER_BY_NS_TOOL,
   LIST_QUOTA_BY_NS_TOOL,
   LIST_INGRESS_BY_NS_TOOL,
-  // LIST_NODES_TOOL,
   LIST_CRONJOBS_BY_NS_TOOL,
   LIST_EVENTS_BY_NS_TOOL,
   LIST_DEBT_BY_NS_TOOL,
@@ -26,7 +25,6 @@ import { listDevboxByNamespace } from '../tools/list-devbox-by-ns';
 import { listClusterByNamespace } from '../tools/list-cluster-by-ns';
 import { listQuotaByNamespace } from '../tools/list-quota-by-ns';
 import { listIngressByNamespace } from '../tools/list-ingress-by-ns';
-// import { listNodes } from '../tools/list-nodes';
 import { listCronjobsByNamespace } from '../tools/list-cronjobs-by-ns';
 import { listEventsByNamespace } from '../tools/list-events-by-ns';
 import { listDebtByNamespace } from '../tools/list-debt-by-ns';
@@ -118,10 +116,6 @@ const TOOLS = {
     description: LIST_INGRESS_BY_NS_TOOL.description,
     run: (client: KubernetesClient, input: unknown) => listIngressByNamespace(client, input as any),
   },
-  // [LIST_NODES_TOOL.name]: {
-  //   description: LIST_NODES_TOOL.description,
-  //   run: (client: KubernetesClient, input: unknown) => listNodes(client, input as any),
-  // },
   [LIST_CRONJOBS_BY_NS_TOOL.name]: {
     description: LIST_CRONJOBS_BY_NS_TOOL.description,
     run: (client: KubernetesClient, input: unknown) => listCronjobsByNamespace(client, input as any),

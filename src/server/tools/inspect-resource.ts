@@ -1,7 +1,16 @@
 //本文件已弃用，可以忽略，之后考虑删除
-import { InspectResourceInput, InspectResourceInputSchema } from './types';
+import { z } from 'zod';
 import { kubernetesClient } from '../kubernetes/client';
 import { KubernetesError } from '../kubernetes/types';
+
+const InspectResourceInputSchema = z.object({
+  resource: z.string().min(1, 'Resource type is required'),
+  name: z.string().min(1, 'Resource name is required'),
+  namespace: z.string().min(1, 'Namespace is required'),
+  lines: z.number().optional().default(30),
+});
+
+type InspectResourceInput = z.infer<typeof InspectResourceInputSchema>;
 
 // Resource type mapping with both singular and plural forms
 const RESOURCE_MAPPING: Record<string, { group: string; version: string; plural: string }> = {

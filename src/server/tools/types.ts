@@ -9,7 +9,7 @@ export type ListPodsByNsInput = z.infer<typeof ListPodsByNsInputSchema>;
 
 export const LIST_PODS_BY_NS_TOOL = {
   name: 'list_pods_by_ns',
-  description: 'List all pods in a specific namespace',
+  description: 'List all pods in a namespace. Use this to check the status, restarts, or basic info of Sealos App Launchpad applications (应用管理) or backend instances when users report app crashes, "preparing" state, or runtime errors.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -31,7 +31,7 @@ export type ListDevboxByNsInput = z.infer<typeof ListDevboxByNsInputSchema>;
 
 export const LIST_DEVBOX_BY_NS_TOOL = {
   name: 'list_devbox_by_ns',
-  description: 'List all devboxes in a specific namespace',
+  description: 'List all DevBox CRD instances in a namespace. Use this when users report issues with their cloud IDE, DevBox project creation, environment startup, or IDE connection (like Cursor/VSCode SSH).',
   inputSchema: {
     type: 'object',
     properties: {
@@ -53,7 +53,7 @@ export type ListClusterByNsInput = z.infer<typeof ListClusterByNsInputSchema>;
 
 export const LIST_CLUSTER_BY_NS_TOOL = {
   name: 'list_cluster_by_ns',
-  description: 'List KubeBlocks clusters (databases) in a namespace',
+  description: 'List database clusters (KubeBlocks) in a namespace. Use this when users report issues with databases (MySQL, PostgreSQL, Redis, MongoDB, Kafka, Milvus) such as connection failures, deployment status, or database restarts.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -75,7 +75,7 @@ export type ListQuotaByNsInput = z.infer<typeof ListQuotaByNsInputSchema>;
 
 export const LIST_QUOTA_BY_NS_TOOL = {
   name: 'list_quota_by_ns',
-  description: 'List resource quotas in a specific namespace',
+  description: 'List resource quotas in a namespace. Use this when users report issues with creating apps/devboxes failing due to resource limits, insufficient CPU/Memory, or platform restrictions.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -97,7 +97,7 @@ export type ListIngressByNsInput = z.infer<typeof ListIngressByNsInputSchema>;
 
 export const LIST_INGRESS_BY_NS_TOOL = {
   name: 'list_ingress_by_ns',
-  description: 'List Ingress resources in a specific namespace',
+  description: 'List Ingress resources in a namespace. Use this to check network configurations when users report issues with custom domains, external access (外网访问), CNAME resolution, or port mapping.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -110,37 +110,9 @@ export const LIST_INGRESS_BY_NS_TOOL = {
   },
 };
 
-// ============================================================================
-// 工具组 2：集群级别资源（不按 namespace 过滤）
-// ============================================================================
-
-// 7) Nodes 资源 - 唯一的特殊工具：namespace 参数可选但会被忽略
-//    为什么要保留 namespace 参数：为了保持接口一致性（所有 list 工具都有 namespace）
-//    为什么要标记为 ignored：Nodes 是集群级别资源，不属于任何 namespace
-export const ListNodesInputSchema = z.object({
-  namespace: z.string().optional(),
-});
-
-export type ListNodesInput = z.infer<typeof ListNodesInputSchema>;
-
-export const LIST_NODES_TOOL = {
-  name: 'list_nodes',
-  description: 'List all cluster nodes',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      namespace: {
-        type: 'string',
-        description: 'Ignored for cluster-level resources',
-      },
-    },
-    required: [], // 空数组表示没有必需参数
-  },
-};
-
 export const NONE_TOOL = {
   name: 'none',
-  description: 'Return a fixed message only when the current user input clearly does not require any cluster query',
+  description: 'Return this tool ONLY when the user input is a general conversation (e.g., "hello", "thank you") or explicitly does not require querying any cluster resources. Do not use if diagnosing a technical issue.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -161,7 +133,7 @@ export type ListCronjobsByNsInput = z.infer<typeof ListCronjobsByNsInputSchema>;
 
 export const LIST_CRONJOBS_BY_NS_TOOL = {
   name: 'list_cronjobs_by_ns',
-  description: 'List CronJob resources in a specific namespace',
+  description: 'List CronJob resources in a namespace. Use this when users report issues with scheduled tasks, Laf Cron Triggers (定时任务), or background batch jobs failing to execute.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -183,7 +155,7 @@ export type ListEventsByNsInput = z.infer<typeof ListEventsByNsInputSchema>;
 
 export const LIST_EVENTS_BY_NS_TOOL = {
   name: 'list_events_by_ns',
-  description: 'List Event resources in a specific namespace (last 100, sorted by timestamp)',
+  description: 'List Event resources (last 100). CRITICAL TOOL for debugging. Use this whenever an app/DevBox is constantly restarting, stuck in "Evicted" or "Pending", or crashed to check for OOMKilled, ephemeral-storage issues, or pulling image errors.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -209,7 +181,7 @@ export type ListDebtByNsInput = z.infer<typeof ListDebtByNsInputSchema>;
 
 export const LIST_DEBT_BY_NS_TOOL = {
   name: 'list_debt_by_ns',
-  description: 'List Debt CRD resources in a specific namespace',
+  description: 'List Debt CRD resources in a namespace. Use this when users report their instances are suspended, deleted, or show "detect abnormal" after recharging, to verify billing arrears (欠费停机) or grace period status.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -231,7 +203,7 @@ export type ListObjectStorageBucketByNsInput = z.infer<typeof ListObjectStorageB
 
 export const LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL = {
   name: 'list_objectstoragebucket_by_ns',
-  description: 'List ObjectStorageBucket CRD resources in a specific namespace',
+  description: 'List ObjectStorageBucket CRD resources. Use this when users report issues with Sealos Object Storage (对象存储), bucket access permissions (public/private), static website hosting, or SDK connection.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -253,7 +225,7 @@ export type ListCertificateByNsInput = z.infer<typeof ListCertificateByNsInputSc
 
 export const LIST_CERTIFICATE_BY_NS_TOOL = {
   name: 'list_certificate_by_ns',
-  description: 'List Certificate CRD resources in a specific namespace',
+  description: 'List Certificate CRD resources in a namespace. Use this to troubleshoot HTTPS, SSL certificate issuance, or renewal failures typically associated with Custom Domains (自定义域名) and ICP filing (备案) issues.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -263,48 +235,5 @@ export const LIST_CERTIFICATE_BY_NS_TOOL = {
       },
     },
     required: ['namespace'],
-  },
-};
-
-// ============================================================================
-// 工具组 5：通用资源检查工具（inspect）
-// ============================================================================
-
-// 13) InspectResource - 唯一的多参数工具：支持资源类型、名称、namespace、可选行数
-//    为什么要增加 resource/name：需要精确定位某个具体资源（不是列出所有）
-//    为什么要增加 lines：控制日志输出量（只针对 Pod 资源有效）
-export const InspectResourceInputSchema = z.object({
-  resource: z.string().min(1, 'Resource type is required'),
-  name: z.string().min(1, 'Resource name is required'),
-  namespace: z.string().min(1, 'Namespace is required'),
-  lines: z.number().optional().default(30), // 可选参数：.default(30) 表示未传值时默认为 30
-});
-
-export type InspectResourceInput = z.infer<typeof InspectResourceInputSchema>;
-
-export const INSPECT_RESOURCE_TOOL = {
-  name: 'inspect_resource',
-  description: 'Inspect a Kubernetes resource by fetching its manifest, events, and logs (for pods)',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      resource: {
-        type: 'string',
-        description: 'The type of resource to inspect (e.g., pod, deployment, service, devbox, cluster). Both singular and plural forms are accepted.',
-      },
-      name: {
-        type: 'string',
-        description: 'The name of the resource to inspect',
-      },
-      namespace: {
-        type: 'string',
-        description: 'The namespace where the resource is located',
-      },
-      lines: {
-        type: 'number',
-        description: 'Number of recent log lines to fetch (for pods only, default: 30)',
-      },
-    },
-    required: ['resource', 'name', 'namespace'],
   },
 };

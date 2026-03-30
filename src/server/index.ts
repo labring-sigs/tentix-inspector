@@ -14,14 +14,12 @@
 //   LIST_CLUSTER_BY_NS_TOOL,
 //   LIST_QUOTA_BY_NS_TOOL,
 //   LIST_INGRESS_BY_NS_TOOL,
-//   LIST_NODES_TOOL,
 //   LIST_CRONJOBS_BY_NS_TOOL,
 //   LIST_EVENTS_BY_NS_TOOL,
 //   LIST_ACCOUNT_BY_NS_TOOL,
 //   LIST_DEBT_BY_NS_TOOL,
 //   LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL,
 //   LIST_CERTIFICATE_BY_NS_TOOL,
-//   INSPECT_RESOURCE_TOOL,
 // } from './tools/types';
 
 // import { listPodsByNamespace } from './tools/list-pods-by-ns';
@@ -29,14 +27,12 @@
 // import { listClusterByNamespace } from './tools/list-cluster-by-ns';
 // import { listQuotaByNamespace } from './tools/list-quota-by-ns';
 // import { listIngressByNamespace } from './tools/list-ingress-by-ns';
-// import { listNodes } from './tools/list-nodes';
 // import { listCronjobsByNamespace } from './tools/list-cronjobs-by-ns';
 // import { listEventsByNamespace } from './tools/list-events-by-ns';
 // import { listAccountByNamespace } from './tools/list-account-by-ns';
 // import { listDebtByNamespace } from './tools/list-debt-by-ns';
 // import { listObjectStorageBucketByNamespace } from './tools/list-objectstoragebucket-by-ns';
 // import { listCertificateByNamespace } from './tools/list-certificate-by-ns';
-// import { inspectResource } from './tools/inspect-resource';
 // import { kubernetesClient } from './kubernetes/client';
 
 // /*
@@ -158,14 +154,12 @@
 //         LIST_CLUSTER_BY_NS_TOOL,
 //         LIST_QUOTA_BY_NS_TOOL,
 //         LIST_INGRESS_BY_NS_TOOL,
-//         LIST_NODES_TOOL,
 //         LIST_CRONJOBS_BY_NS_TOOL,
 //         LIST_EVENTS_BY_NS_TOOL,
 //         LIST_ACCOUNT_BY_NS_TOOL,
 //         LIST_DEBT_BY_NS_TOOL,
 //         LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL,
 //         LIST_CERTIFICATE_BY_NS_TOOL,
-//         INSPECT_RESOURCE_TOOL,
 //       ],
 //     };
 //   });
@@ -245,17 +239,6 @@
 //             ],
 //           };
 
-//         case 'list_nodes':
-//           const nodesResult = await listNodes(args as any);
-//           return {
-//             content: [
-//               {
-//                 type: 'text',
-//                 text: JSON.stringify(nodesResult, null, 2),
-//               },
-//             ],
-//           };
-
 //         case 'list_cronjobs_by_ns':
 //           const cronjobsResult = await listCronjobsByNamespace(args as any);
 //           return {
@@ -318,17 +301,6 @@
 //               {
 //                 type: 'text',
 //                 text: JSON.stringify(certificateResult, null, 2),
-//               },
-//             ],
-//           };
-
-//         case 'inspect_resource':
-//           const inspectResult = await inspectResource(args as any);
-//           return {
-//             content: [
-//               {
-//                 type: 'text',
-//                 text: JSON.stringify(inspectResult, null, 2),
 //               },
 //             ],
 //           };
