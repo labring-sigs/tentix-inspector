@@ -263,3 +263,22 @@ export interface ListAppsResponse {
   error?: KubernetesError;
   success: boolean;
 }
+
+export interface PVCInfo {
+  name: string;
+  status: string;
+  volume: string;
+  capacity: string;
+  accessModes: string;
+  storageClass: string;
+  age?: string;
+  volumeMode: string;
+}
+
+export interface ListPvcsResponse {
+  namespace: string;
+  pvcs: PVCInfo[];
+  total: number;
+  error?: KubernetesError;
+  success: boolean;
+}

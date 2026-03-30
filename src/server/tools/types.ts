@@ -300,3 +300,24 @@ export const LIST_APPS_BY_NS_TOOL = {
     required: ['namespace'],
   },
 };
+
+export const ListPvcsByNsInputSchema = z.object({
+  namespace: z.string().min(1, 'Namespace is required'),
+});
+
+export type ListPvcsByNsInput = z.infer<typeof ListPvcsByNsInputSchema>;
+
+export const LIST_PVCS_BY_NS_TOOL = {
+  name: 'list_pvcs_by_ns',
+  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Use this to inspect storage usage and volume status when users report persistent storage (持久化存储), mounted data, disk capacity, PVC Pending/Bound issues, or application/database data volume problems.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      namespace: {
+        type: 'string',
+        description: 'The namespace to list PVC resources from',
+      },
+    },
+    required: ['namespace'],
+  },
+};
