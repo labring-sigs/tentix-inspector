@@ -246,7 +246,7 @@ export type ListDeploymentsByNsInput = z.infer<typeof ListDeploymentsByNsInputSc
 
 export const LIST_DEPLOYMENTS_BY_NS_TOOL = {
   name: 'list_deployments_by_ns',
-  description: 'List Deployment resources in a namespace. Use this when the user explicitly asks about Deployment resources, rollout status, updated replicas, available replicas, container images, or deployment-backed applications. Do not use this for StatefulSet-backed applications.',
+  description: 'List Deployment resources in a namespace. Use this specifically to inspect the underlying configuration of stateless apps in Sealos App Launchpad (应用管理). Prefer using list_apps_by_ns unless you specifically need to isolate stateless workloads.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -267,7 +267,7 @@ export type ListStatefulSetsByNsInput = z.infer<typeof ListStatefulSetsByNsInput
 
 export const LIST_STATEFULSETS_BY_NS_TOOL = {
   name: 'list_statefulsets_by_ns',
-  description: 'List StatefulSet resources in a namespace. Use this when the user explicitly asks about StatefulSet resources, stateful applications, or applications with persistent storage. Do not use this for Deployment-backed applications.',
+  description: 'List StatefulSet resources in a namespace. Use this to inspect the configuration of applications in Sealos App Launchpad (应用管理) that utilize persistent storage (持久化存储) or volume mounts. Prefer using list_apps_by_ns unless diagnosing specific stateful volume issues.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -288,7 +288,7 @@ export type ListAppsByNsInput = z.infer<typeof ListAppsByNsInputSchema>;
 
 export const LIST_APPS_BY_NS_TOOL = {
   name: 'list_apps_by_ns',
-  description: 'List application workloads in a namespace by combining Deployment and StatefulSet resources. Use this for Sealos App Launchpad (应用管理) when the user asks about their applications without explicitly specifying Deployment or StatefulSet.',
+  description: 'List application workloads (combined Deployments and StatefulSets) in a namespace. This is the PRIMARY tool to check the configuration of Sealos App Launchpad (应用管理) apps. Use this when users report issues with environment variables (环境变量), startup commands (启动命令), image names, or general app configuration updates not taking effect.',
   inputSchema: {
     type: 'object',
     properties: {
