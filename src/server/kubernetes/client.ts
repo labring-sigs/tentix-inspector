@@ -4,7 +4,12 @@ import * as path from 'path';
 const K8S_REQUEST_TIMEOUT_MS = Number(process.env.K8S_REQUEST_TIMEOUT_MS ?? 60_000);
 
 function attachRequestTimeout(
-  client: k8s.CoreV1Api | k8s.CustomObjectsApi | k8s.NetworkingV1Api | k8s.BatchV1Api,
+  client:
+    | k8s.CoreV1Api
+    | k8s.CustomObjectsApi
+    | k8s.NetworkingV1Api
+    | k8s.BatchV1Api
+    | k8s.AppsV1Api,
   timeoutMs: number
 ): void {
   client.addInterceptor((requestOptions) => {
@@ -18,6 +23,7 @@ export class KubernetesClient {
   private customObjectsApi: k8s.CustomObjectsApi;
   private networkingV1Api: k8s.NetworkingV1Api;
   private batchV1Api: k8s.BatchV1Api;
+  private appsV1Api: k8s.AppsV1Api;
 
   constructor(kubeconfigPath?: string, kubeconfigContent?: string) {
     this.kc = new k8s.KubeConfig();
@@ -35,11 +41,13 @@ export class KubernetesClient {
     this.customObjectsApi = this.kc.makeApiClient(k8s.CustomObjectsApi);
     this.networkingV1Api = this.kc.makeApiClient(k8s.NetworkingV1Api);
     this.batchV1Api = this.kc.makeApiClient(k8s.BatchV1Api);
+    this.appsV1Api = this.kc.makeApiClient(k8s.AppsV1Api);
 
     attachRequestTimeout(this.k8sApi, K8S_REQUEST_TIMEOUT_MS);
     attachRequestTimeout(this.customObjectsApi, K8S_REQUEST_TIMEOUT_MS);
     attachRequestTimeout(this.networkingV1Api, K8S_REQUEST_TIMEOUT_MS);
     attachRequestTimeout(this.batchV1Api, K8S_REQUEST_TIMEOUT_MS);
+    attachRequestTimeout(this.appsV1Api, K8S_REQUEST_TIMEOUT_MS);
   }
 
   /**
@@ -68,6 +76,13 @@ export class KubernetesClient {
    */
   getBatchV1Api(): k8s.BatchV1Api {
     return this.batchV1Api;
+  }
+
+  /**
+   * Get the Apps V1 API client for Deployment resources
+   */
+  getAppsV1Api(): k8s.AppsV1Api {
+    return this.appsV1Api;
   }
 
   /**

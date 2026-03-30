@@ -213,3 +213,23 @@ export interface ListCertificateResponse {
   error?: KubernetesError;
   success: boolean;
 }
+
+export interface DeploymentInfo {
+  name: string;
+  ready: string;
+  upToDate: number;
+  available: number;
+  age?: string;
+  containers: string;
+  images: string;
+  selector: string;
+  paused: boolean;
+}
+
+export interface ListDeploymentsResponse {
+  namespace: string;
+  deployments: DeploymentInfo[];
+  total: number;
+  error?: KubernetesError;
+  success: boolean;
+}

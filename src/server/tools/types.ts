@@ -237,3 +237,24 @@ export const LIST_CERTIFICATE_BY_NS_TOOL = {
     required: ['namespace'],
   },
 };
+
+export const ListDeploymentsByNsInputSchema = z.object({
+  namespace: z.string().min(1, 'Namespace is required'),
+});
+
+export type ListDeploymentsByNsInput = z.infer<typeof ListDeploymentsByNsInputSchema>;
+
+export const LIST_DEPLOYMENTS_BY_NS_TOOL = {
+  name: 'list_deployments_by_ns',
+  description: 'List Deployment resources in a namespace. Use this when the user explicitly asks about Deployment resources, rollout status, updated replicas, available replicas, container images, or deployment-backed applications. Do not use this for StatefulSet-backed applications.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      namespace: {
+        type: 'string',
+        description: 'The namespace to list Deployment resources from',
+      },
+    },
+    required: ['namespace'],
+  },
+};
