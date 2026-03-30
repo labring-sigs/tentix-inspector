@@ -38,6 +38,7 @@ import { returnNoneResult } from '../tools/none-tool';
 const AI_API_KEY = process.env.AI_API_KEY;
 const AI_BASE_URL = process.env.AI_BASE_URL;
 const AI_MODEL = process.env.AI_MODEL || "gemini-1.5-flash";
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 15_000);
 
 // >>>>>> 新增这几行调试代码 >>>>>>
 console.log("--------------------------------------------------");
@@ -61,6 +62,7 @@ const llm = new ChatOpenAI({
   modelName: AI_MODEL,
   apiKey: AI_API_KEY,
   configuration: { baseURL: formattedBaseUrl },
+  timeout: LLM_TIMEOUT_MS,
   temperature: 0,
 });
 

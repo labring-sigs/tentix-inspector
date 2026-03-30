@@ -28,6 +28,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function extractErrorText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (!isRecord(value)) {
+    return '';
+  }
+
+  const parts: string[] = [];
+
+  if (typeof value.code === 'string') {
+    parts.push(value.code);
+  }
+  if (typeof value.message === 'string') {
+    parts.push(value.message);
+  }
+
+  return parts.join(' ').trim();
+}
+
+function looksLikeTimeout(value: unknown): boolean {
+  return /timed?\s*out|timeout|ETIMEDOUT|ESOCKETTIMEDOUT|AbortError/i.test(
+    extractErrorText(value)
+  );
+}
+
 function getSkillsResponseStatus(finalResult: unknown): number {
   if (finalResult == null) {
     return 502;
@@ -40,7 +67,7 @@ function getSkillsResponseStatus(finalResult: unknown): number {
   const result = finalResult.result;
 
   if (isRecord(result) && result.success === false) {
-    return 502;
+    return looksLikeTimeout(result.error) ? 504 : 502;
   }
 
   return 200;
@@ -81,7 +108,8 @@ app.post('/api/skills', async (req: Request, res: Response) => {
     res.status(status).json(finalResult);
   } catch (error) {
     console.error('[HTTP] /api/skills error:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal Server Error' });
+    const status = looksLikeTimeout(error) ? 504 : 500;
+    res.status(status).json({ error: error instanceof Error ? error.message : 'Internal Server Error' });
   }
 });
 

@@ -1,6 +1,17 @@
 import * as k8s from '@kubernetes/client-node';
 import * as path from 'path';
 
+const K8S_REQUEST_TIMEOUT_MS = Number(process.env.K8S_REQUEST_TIMEOUT_MS ?? 60_000);
+
+function attachRequestTimeout(
+  client: k8s.CoreV1Api | k8s.CustomObjectsApi | k8s.NetworkingV1Api | k8s.BatchV1Api,
+  timeoutMs: number
+): void {
+  client.addInterceptor((requestOptions) => {
+    requestOptions.timeout = timeoutMs;
+  });
+}
+
 export class KubernetesClient {
   private kc: k8s.KubeConfig;
   private k8sApi: k8s.CoreV1Api;
@@ -24,6 +35,11 @@ export class KubernetesClient {
     this.customObjectsApi = this.kc.makeApiClient(k8s.CustomObjectsApi);
     this.networkingV1Api = this.kc.makeApiClient(k8s.NetworkingV1Api);
     this.batchV1Api = this.kc.makeApiClient(k8s.BatchV1Api);
+
+    attachRequestTimeout(this.k8sApi, K8S_REQUEST_TIMEOUT_MS);
+    attachRequestTimeout(this.customObjectsApi, K8S_REQUEST_TIMEOUT_MS);
+    attachRequestTimeout(this.networkingV1Api, K8S_REQUEST_TIMEOUT_MS);
+    attachRequestTimeout(this.batchV1Api, K8S_REQUEST_TIMEOUT_MS);
   }
 
   /**
