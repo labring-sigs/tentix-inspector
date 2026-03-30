@@ -258,3 +258,24 @@ export const LIST_DEPLOYMENTS_BY_NS_TOOL = {
     required: ['namespace'],
   },
 };
+
+export const ListStatefulSetsByNsInputSchema = z.object({
+  namespace: z.string().min(1, 'Namespace is required'),
+});
+
+export type ListStatefulSetsByNsInput = z.infer<typeof ListStatefulSetsByNsInputSchema>;
+
+export const LIST_STATEFULSETS_BY_NS_TOOL = {
+  name: 'list_statefulsets_by_ns',
+  description: 'List StatefulSet resources in a namespace. Use this when the user explicitly asks about StatefulSet resources, stateful applications, or applications with persistent storage. Do not use this for Deployment-backed applications.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      namespace: {
+        type: 'string',
+        description: 'The namespace to list StatefulSet resources from',
+      },
+    },
+    required: ['namespace'],
+  },
+};

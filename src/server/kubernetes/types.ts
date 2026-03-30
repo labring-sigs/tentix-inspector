@@ -233,3 +233,21 @@ export interface ListDeploymentsResponse {
   error?: KubernetesError;
   success: boolean;
 }
+
+export interface StatefulSetInfo {
+  name: string;
+  ready: string;
+  age?: string;
+  containers: string;
+  images: string;
+  storage: string;
+  paused: boolean;
+}
+
+export interface ListStatefulSetsResponse {
+  namespace: string;
+  statefulsets: StatefulSetInfo[];
+  total: number;
+  error?: KubernetesError;
+  success: boolean;
+}
