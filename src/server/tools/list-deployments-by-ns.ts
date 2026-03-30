@@ -113,8 +113,8 @@ export async function listDeploymentsByNamespace(
     const deployments: DeploymentInfo[] = deploymentList.body.items.map((deployment: k8s.V1Deployment) => {
       const desiredReplicas = deployment.spec?.replicas ?? 1;
       const readyReplicas = deployment.status?.readyReplicas ?? 0;
-      const upToDate = deployment.status?.updatedReplicas ?? 0;
-      const available = deployment.status?.availableReplicas ?? 0;
+      const updatedReplicas = deployment.status?.updatedReplicas ?? 0;
+      const availableReplicas = deployment.status?.availableReplicas ?? 0;
 
       const containers =
         deployment.spec?.template?.spec?.containers
@@ -129,8 +129,8 @@ export async function listDeploymentsByNamespace(
       return {
         name: deployment.metadata?.name || 'unknown',
         ready: `${readyReplicas}/${desiredReplicas}`,
-        upToDate,
-        available,
+        updatedReplicas,
+        availableReplicas,
         age: deployment.metadata?.creationTimestamp
           ? calculateAge(new Date(deployment.metadata.creationTimestamp))
           : undefined,

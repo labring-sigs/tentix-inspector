@@ -279,3 +279,24 @@ export const LIST_STATEFULSETS_BY_NS_TOOL = {
     required: ['namespace'],
   },
 };
+
+export const ListAppsByNsInputSchema = z.object({
+  namespace: z.string().min(1, 'Namespace is required'),
+});
+
+export type ListAppsByNsInput = z.infer<typeof ListAppsByNsInputSchema>;
+
+export const LIST_APPS_BY_NS_TOOL = {
+  name: 'list_apps_by_ns',
+  description: 'List application workloads in a namespace by combining Deployment and StatefulSet resources. Use this for Sealos App Launchpad (应用管理) when the user asks about their applications without explicitly specifying Deployment or StatefulSet.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      namespace: {
+        type: 'string',
+        description: 'The namespace to list application workloads from',
+      },
+    },
+    required: ['namespace'],
+  },
+};

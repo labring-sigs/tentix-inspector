@@ -19,6 +19,7 @@ import {
   LIST_CERTIFICATE_BY_NS_TOOL,
   LIST_DEPLOYMENTS_BY_NS_TOOL,
   LIST_STATEFULSETS_BY_NS_TOOL,
+  LIST_APPS_BY_NS_TOOL,
   NONE_TOOL,
 } from '../tools/types';
 
@@ -34,6 +35,7 @@ import { listObjectStorageBucketByNamespace } from '../tools/list-objectstorageb
 import { listCertificateByNamespace } from '../tools/list-certificate-by-ns';
 import { listDeploymentsByNamespace } from '../tools/list-deployments-by-ns';
 import { listStatefulSetsByNamespace } from '../tools/list-statefulsets-by-ns';
+import { listAppsByNamespace } from '../tools/list-apps-by-ns';
 import { returnNoneResult } from '../tools/none-tool';
 
 // --- A. 初始化 AI 模型 (Gemini) ---
@@ -151,6 +153,11 @@ const TOOLS = {
     description: LIST_STATEFULSETS_BY_NS_TOOL.description,
     run: (client: KubernetesClient, input: unknown) =>
       listStatefulSetsByNamespace(client, input as any),
+  },
+  [LIST_APPS_BY_NS_TOOL.name]: {
+    description: LIST_APPS_BY_NS_TOOL.description,
+    run: (client: KubernetesClient, input: unknown) =>
+      listAppsByNamespace(client, input as any),
   },
   [NONE_TOOL.name]: {
     description: NONE_TOOL.description,

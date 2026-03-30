@@ -217,8 +217,8 @@ export interface ListCertificateResponse {
 export interface DeploymentInfo {
   name: string;
   ready: string;
-  upToDate: number;
-  available: number;
+  updatedReplicas: number;
+  availableReplicas: number;
   age?: string;
   containers: string;
   images: string;
@@ -247,6 +247,18 @@ export interface StatefulSetInfo {
 export interface ListStatefulSetsResponse {
   namespace: string;
   statefulsets: StatefulSetInfo[];
+  total: number;
+  error?: KubernetesError;
+  success: boolean;
+}
+
+export type AppInfo =
+  | ({ kind: 'Deployment' } & DeploymentInfo)
+  | ({ kind: 'StatefulSet' } & StatefulSetInfo);
+
+export interface ListAppsResponse {
+  namespace: string;
+  apps: AppInfo[];
   total: number;
   error?: KubernetesError;
   success: boolean;
