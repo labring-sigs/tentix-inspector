@@ -24,6 +24,28 @@ function pickQueryString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getSkillsResponseStatus(finalResult: unknown): number {
+  if (finalResult == null) {
+    return 502;
+  }
+
+  if (!isRecord(finalResult)) {
+    return 200;
+  }
+
+  const result = finalResult.result;
+
+  if (isRecord(result) && result.success === false) {
+    return 502;
+  }
+
+  return 200;
+}
+
 app.post('/api/skills', async (req: Request, res: Response) => {
   try {
     const body = SkillsPayloadSchema.parse(req.body ?? {});
@@ -53,8 +75,10 @@ app.post('/api/skills', async (req: Request, res: Response) => {
 
     const runnable = await getAgentRunnable();
     const finalState = await runnable.invoke(initialState);
+    const finalResult = finalState.finalResult ?? null;
+    const status = getSkillsResponseStatus(finalResult);
 
-    res.json(finalState.finalResult ?? null);
+    res.status(status).json(finalResult);
   } catch (error) {
     console.error('[HTTP] /api/skills error:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal Server Error' });
