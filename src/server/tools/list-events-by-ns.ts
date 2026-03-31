@@ -66,28 +66,45 @@ export async function listEventsByNamespace(
     // List Event resources in the specified namespace
     const eventList = await k8sApi.listNamespacedEvent(namespace);
 
-    // Transform Event data and sort by lastTimestamp descending
+    // Transform Event data into an AI-friendly structure and sort by lastSeen descending
     const events = eventList.body.items
       .map((event: any) => {
-        // Extract involved object info
-        const involvedObject = event.involvedObject;
-        const objectString = involvedObject
-          ? `${involvedObject.kind?.toLowerCase() || 'unknown'}/${involvedObject.name || 'unknown'}`
-          : 'unknown/unknown';
+        const involvedObject = event.involvedObject || event.regarding;
+        const lastSeenRaw =
+          event.lastTimestamp ||
+          event.deprecatedLastTimestamp ||
+          event.series?.lastObservedTime ||
+          event.eventTime;
+        const firstSeenRaw =
+          event.firstTimestamp ||
+          event.deprecatedFirstTimestamp ||
+          lastSeenRaw;
 
         return {
-          type: event.type || 'Unknown',
+          severity: event.type || 'Unknown',
           reason: event.reason || 'Unknown',
-          object: objectString,
-          message: event.message || 'No message',
-          lastTimestamp: event.lastTimestamp ? event.lastTimestamp : event.eventTime,
-          count: event.count || 1
+          resourceKind: involvedObject?.kind || 'Unknown',
+          resourceName: involvedObject?.name || 'Unknown',
+          subObject: involvedObject?.fieldPath || '',
+          sourceComponent:
+            event.source?.component ||
+            event.reportingComponent ||
+            event.reportingController ||
+            '',
+          sourceInstance:
+            event.source?.host ||
+            event.reportingInstance ||
+            '',
+          message: event.message || event.note || 'No message',
+          firstSeen: firstSeenRaw ? new Date(firstSeenRaw).toISOString() : '',
+          lastSeen: lastSeenRaw ? new Date(lastSeenRaw).toISOString() : '',
+          count: event.count || event.deprecatedCount || event.series?.count || 1
         };
       })
       .sort((a, b) => {
-        // Sort by lastTimestamp descending (newest first)
-        const timeA = a.lastTimestamp ? new Date(a.lastTimestamp).getTime() : 0;
-        const timeB = b.lastTimestamp ? new Date(b.lastTimestamp).getTime() : 0;
+        // Sort by lastSeen descending (newest first)
+        const timeA = a.lastSeen ? new Date(a.lastSeen).getTime() : 0;
+        const timeB = b.lastSeen ? new Date(b.lastSeen).getTime() : 0;
         return timeB - timeA;
       })
       .slice(0, 100); // Limit to first 100 results

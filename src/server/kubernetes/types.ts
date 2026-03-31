@@ -94,11 +94,16 @@ export interface ListCronJobsResponse {
 
 // Event resource types
 export interface EventInfo {
-  type: string;
+  severity: string;
   reason: string;
-  object: string;
+  resourceKind: string;
+  resourceName: string;
+  subObject: string;
+  sourceComponent: string;
+  sourceInstance: string;
   message: string;
-  lastTimestamp: string;
+  firstSeen: string;
+  lastSeen: string;
   count: number;
 }
 

@@ -112,7 +112,7 @@ export const LIST_INGRESS_BY_NS_TOOL = {
 
 export const NONE_TOOL = {
   name: 'none',
-  description: 'Return this tool ONLY when the user input is a general conversation (e.g., "hello", "thank you") or explicitly does not require querying any cluster resources. Do not use if diagnosing a technical issue.',
+  description: 'Return this tool when the current user input does not require querying cluster resources right now, such as greetings, thanks, confirmations, clarification-only replies, or discussion/questions that can be answered from existing context. Do not use this tool if answering the current request depends on checking live cluster or namespace state.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -309,7 +309,7 @@ export type ListPvcsByNsInput = z.infer<typeof ListPvcsByNsInputSchema>;
 
 export const LIST_PVCS_BY_NS_TOOL = {
   name: 'list_pvcs_by_ns',
-  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Use this to inspect storage usage and volume status when users report persistent storage (持久化存储), mounted data, disk capacity, PVC Pending/Bound issues, or application/database data volume problems.',
+  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Use this to inspect storage usage and volume status when users report persistent storage (持久化存储), mounted data, disk capacity, PVC Pending/Bound issues, or application/database data volume problems. STRICTLY DO NOT use this for Object Storage (对象存储) bucket issues.',
   inputSchema: {
     type: 'object',
     properties: {
