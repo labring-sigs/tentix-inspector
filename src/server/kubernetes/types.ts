@@ -287,3 +287,29 @@ export interface ListPvcsResponse {
   error?: KubernetesError;
   success: boolean;
 }
+
+export interface LogPodCandidate {
+  podName: string;
+  workloadName: string;
+  status: string;
+  ready: string;
+  restarts: number;
+  containers: string[];
+  age?: string;
+}
+
+export interface GetLogsResponse {
+  namespace: string;
+  moduleHint: string;
+  resolution: 'resolved' | 'ambiguous_pod' | 'ambiguous_container' | 'no_match';
+  query: string;
+  message: string;
+  selectedPod?: string;
+  selectedContainer?: string;
+  logSource?: 'current' | 'previous';
+  logs?: string;
+  podCandidates?: LogPodCandidate[];
+  containerCandidates?: string[];
+  error?: KubernetesError;
+  success: boolean;
+}

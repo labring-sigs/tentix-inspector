@@ -21,6 +21,7 @@ import {
   LIST_STATEFULSETS_BY_NS_TOOL,
   LIST_APPS_BY_NS_TOOL,
   LIST_PVCS_BY_NS_TOOL,
+  GET_LOGS_BY_NS_TOOL,
   NONE_TOOL,
 } from '../tools/types';
 
@@ -38,6 +39,7 @@ import { listDeploymentsByNamespace } from '../tools/list-deployments-by-ns';
 import { listStatefulSetsByNamespace } from '../tools/list-statefulsets-by-ns';
 import { listAppsByNamespace } from '../tools/list-apps-by-ns';
 import { listPvcsByNamespace } from '../tools/list-pvcs-by-ns';
+import { getLogsByNamespace } from '../tools/get-logs-by-ns';
 import { returnNoneResult } from '../tools/none-tool';
 
 // --- A. 初始化 AI 模型 (Gemini) ---
@@ -166,6 +168,11 @@ const TOOLS = {
     description: LIST_PVCS_BY_NS_TOOL.description,
     run: (client: KubernetesClient, input: unknown) =>
       listPvcsByNamespace(client, input as any),
+  },
+  [GET_LOGS_BY_NS_TOOL.name]: {
+    description: GET_LOGS_BY_NS_TOOL.description,
+    run: (client: KubernetesClient, input: unknown) =>
+      getLogsByNamespace(client, input as any),
   },
   [NONE_TOOL.name]: {
     description: NONE_TOOL.description,
@@ -358,10 +365,26 @@ async function executorNode(state: AgentState): Promise<Partial<AgentState>> {
     rawToolInput && typeof rawToolInput === 'object' && !Array.isArray(rawToolInput)
       ? (rawToolInput as Record<string, unknown>)
       : {};
-  const input: unknown =
-    selectedTool === 'none'
-      ? {}
-      : { ...toolInputObject, namespace: state.namespace };
+  let input: unknown;
+
+  if (selectedTool === NONE_TOOL.name) {
+    input = {};
+  } else if (selectedTool === GET_LOGS_BY_NS_TOOL.name) {
+    input = {
+      ...toolInputObject,
+      namespace: state.namespace,
+      ticketModule: state.ticketModule,
+      ticketTitle: state.ticketTitle,
+      ticketDescription: state.ticketDescription,
+      historyMessages: state.historyMessages,
+      latestMessage: state.latestMessage,
+    };
+  } else {
+    input = {
+      ...toolInputObject,
+      namespace: state.namespace,
+    };
+  }
 
   const result = await tool.run(state.k8sClient, input);
 

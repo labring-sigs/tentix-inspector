@@ -321,3 +321,24 @@ export const LIST_PVCS_BY_NS_TOOL = {
     required: ['namespace'],
   },
 };
+
+export const GetLogsByNsInputSchema = z.object({
+  namespace: z.string().min(1, 'Namespace is required'),
+});
+
+export type GetLogsByNsInput = z.infer<typeof GetLogsByNsInputSchema>;
+
+export const GET_LOGS_BY_NS_TOOL = {
+  name: 'get_logs_by_ns',
+  description: 'Get recent container logs for the most relevant runtime workload in a namespace. Use this when stdout/stderr evidence is needed to diagnose Sealos App Launchpad apps, databases, or DevBox instances.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      namespace: {
+        type: 'string',
+        description: 'The namespace to get logs from',
+      },
+    },
+    required: ['namespace'],
+  },
+};
