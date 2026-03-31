@@ -9,7 +9,7 @@ export type ListPodsByNsInput = z.infer<typeof ListPodsByNsInputSchema>;
 
 export const LIST_PODS_BY_NS_TOOL = {
   name: 'list_pods_by_ns',
-  description: 'List all pods in a namespace. Prefer this for runtime overview and target identification, such as checking which workload is unhealthy, not ready, restarting, or missing, before deciding whether to inspect events or logs. Use this when users report symptoms like "application not starting", "preparing for a long time", "service unavailable", "restarting", or "which instance is abnormal", but the exact target workload is still unclear.',
+  description: 'List all pods in a namespace. Prefer this for first-pass runtime overview and abnormal target identification, especially when users report symptoms like "公网准备中", "网站打不开", "应用起不来", "服务异常", "一直重启", or "不知道是哪一个实例有问题". Use this before events or logs when the exact abnormal workload is still unclear.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -31,7 +31,7 @@ export type ListDevboxByNsInput = z.infer<typeof ListDevboxByNsInputSchema>;
 
 export const LIST_DEVBOX_BY_NS_TOOL = {
   name: 'list_devbox_by_ns',
-  description: 'List all DevBox CRD instances in a namespace. Prefer this for DevBox product-level diagnosis, such as whether the DevBox instance exists, is starting, stopped, released, or in an abnormal lifecycle state, and when users report IDE startup issues, SSH connection issues, public access issues, or DevBox environment availability problems. This is not the primary tool for container stdout/stderr; use logs when the DevBox workload itself needs runtime process evidence.',
+  description: 'List all DevBox CRD instances in a namespace. Prefer this for DevBox product-level diagnosis, especially when users report DevBox stuck in executing or starting, unable to boot, release or deploy stuck, SSH or IDE connection problems, public access problems, or general DevBox environment availability issues. This is not the primary tool for container stdout/stderr; use logs when runtime process evidence inside the DevBox workload is needed.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -53,7 +53,7 @@ export type ListClusterByNsInput = z.infer<typeof ListClusterByNsInputSchema>;
 
 export const LIST_CLUSTER_BY_NS_TOOL = {
   name: 'list_cluster_by_ns',
-  description: 'List database clusters (KubeBlocks) in a namespace. Prefer this for Sealos Database (数据库) resource-level diagnosis, such as database instance status, deployment phase, component health, connection information, scaling state, or whether the database resource itself is abnormal. Use logs only when runtime database process output is needed after the database instance has been identified.',
+  description: 'List database clusters (KubeBlocks) in a namespace. Prefer this for Sealos Database (数据库) resource-level diagnosis, such as instance status, deployment phase, component health, timeout-related resource abnormality, connection information, scaling state, monitoring-related state, or whether the database resource itself is abnormal. Use logs only when runtime database process output is needed after the instance has been identified.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -97,7 +97,7 @@ export type ListIngressByNsInput = z.infer<typeof ListIngressByNsInputSchema>;
 
 export const LIST_INGRESS_BY_NS_TOOL = {
   name: 'list_ingress_by_ns',
-  description: 'List Ingress resources in a namespace. Prefer this when users report custom domain, external access (外网访问), CNAME resolution, HTTPS, host routing, or port exposure problems, especially when the application may be healthy but traffic cannot reach it correctly from outside the cluster. This is not the first tool for application runtime exceptions inside the container.',
+  description: 'List Ingress resources in a namespace. Prefer this when users report custom domain, external access (外网访问), CNAME resolution, HTTPS, host routing, or port exposure problems, especially for cases like "域名解析正常但还是访问不了", "公网访问不到服务", or "证书/域名配置后仍无法从外部访问". This is not the first tool for application runtime exceptions inside the container.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -155,7 +155,7 @@ export type ListEventsByNsInput = z.infer<typeof ListEventsByNsInputSchema>;
 
 export const LIST_EVENTS_BY_NS_TOOL = {
   name: 'list_events_by_ns',
-  description: 'List recent Kubernetes events (last 100) in a namespace. Prefer this for Kubernetes or platform lifecycle failures rather than application stdout/stderr, such as Pending, FailedScheduling, ErrImagePull, ImagePullBackOff, Evicted, OOMKilled, mount failures, probe failures, node issues, or workloads stuck in preparing before the main process is actually running. This is usually the first step when the platform may be preventing the workload from starting correctly.',
+  description: 'List recent Kubernetes events (last 100) in a namespace. Prefer this when the platform is likely blocking, killing, or rejecting the workload, such as Pending, FailedScheduling, ErrImagePull, ImagePullBackOff, Evicted, OOMKilled, mount failures, probe failures, node issues, or resource-related startup failures. Do not use this as the default first step for generic "公网准备中", "网站打不开", or "服务起不来" unless there is reason to suspect a Kubernetes lifecycle failure.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -309,7 +309,7 @@ export type ListPvcsByNsInput = z.infer<typeof ListPvcsByNsInputSchema>;
 
 export const LIST_PVCS_BY_NS_TOOL = {
   name: 'list_pvcs_by_ns',
-  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Prefer this when users report persistent storage (持久化存储) problems such as disk full, storage capacity exhaustion, PVC Pending or Bound issues, mounted data not appearing, volume attach problems, or application/database local volume problems. STRICTLY DO NOT use this for Object Storage (对象存储) bucket issues.',
+  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Prefer this when users report 本地存储, 持久化存储, 存储卷, 挂载路径, volume mount, 重启后数据丢失, disk full, storage exhaustion, or PVC Pending/Bound issues, especially for Sealos App Launchpad (应用管理) and Database workloads. STRICTLY DO NOT use this for Object Storage (对象存储) bucket issues.',
   inputSchema: {
     type: 'object',
     properties: {
