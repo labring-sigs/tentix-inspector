@@ -9,7 +9,7 @@ export type ListPodsByNsInput = z.infer<typeof ListPodsByNsInputSchema>;
 
 export const LIST_PODS_BY_NS_TOOL = {
   name: 'list_pods_by_ns',
-  description: 'List all pods in a namespace. Use this to check the status, restarts, or basic info of Sealos App Launchpad applications (应用管理) or backend instances when users report app crashes, "preparing" state, or runtime errors.',
+  description: 'List all pods in a namespace. Prefer this for runtime overview and target identification, such as checking which workload is unhealthy, not ready, restarting, or missing, before deciding whether to inspect events or logs. Use this when users report symptoms like "application not starting", "preparing for a long time", "service unavailable", "restarting", or "which instance is abnormal", but the exact target workload is still unclear.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -31,7 +31,7 @@ export type ListDevboxByNsInput = z.infer<typeof ListDevboxByNsInputSchema>;
 
 export const LIST_DEVBOX_BY_NS_TOOL = {
   name: 'list_devbox_by_ns',
-  description: 'List all DevBox CRD instances in a namespace. Use this when users report issues with their cloud IDE, DevBox project creation, environment startup, or IDE connection (like Cursor/VSCode SSH).',
+  description: 'List all DevBox CRD instances in a namespace. Prefer this for DevBox product-level diagnosis, such as whether the DevBox instance exists, is starting, stopped, released, or in an abnormal lifecycle state, and when users report IDE startup issues, SSH connection issues, public access issues, or DevBox environment availability problems. This is not the primary tool for container stdout/stderr; use logs when the DevBox workload itself needs runtime process evidence.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -53,7 +53,7 @@ export type ListClusterByNsInput = z.infer<typeof ListClusterByNsInputSchema>;
 
 export const LIST_CLUSTER_BY_NS_TOOL = {
   name: 'list_cluster_by_ns',
-  description: 'List database clusters (KubeBlocks) in a namespace. Use this when users report issues with databases (MySQL, PostgreSQL, Redis, MongoDB, Kafka, Milvus) such as connection failures, deployment status, or database restarts.',
+  description: 'List database clusters (KubeBlocks) in a namespace. Prefer this for Sealos Database (数据库) resource-level diagnosis, such as database instance status, deployment phase, component health, connection information, scaling state, or whether the database resource itself is abnormal. Use logs only when runtime database process output is needed after the database instance has been identified.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -75,7 +75,7 @@ export type ListQuotaByNsInput = z.infer<typeof ListQuotaByNsInputSchema>;
 
 export const LIST_QUOTA_BY_NS_TOOL = {
   name: 'list_quota_by_ns',
-  description: 'List resource quotas in a namespace. Use this when users report issues with creating apps/devboxes failing due to resource limits, insufficient CPU/Memory, or platform restrictions.',
+  description: 'List resource quotas in a namespace. Prefer this when users report that apps, databases, or DevBox instances cannot be created, expanded, or started because of resource limits, insufficient CPU or memory, storage quota exhaustion, or platform-side capacity restrictions. This is not the tool for application runtime errors inside containers.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -97,7 +97,7 @@ export type ListIngressByNsInput = z.infer<typeof ListIngressByNsInputSchema>;
 
 export const LIST_INGRESS_BY_NS_TOOL = {
   name: 'list_ingress_by_ns',
-  description: 'List Ingress resources in a namespace. Use this to check network configurations when users report issues with custom domains, external access (外网访问), CNAME resolution, or port mapping.',
+  description: 'List Ingress resources in a namespace. Prefer this when users report custom domain, external access (外网访问), CNAME resolution, HTTPS, host routing, or port exposure problems, especially when the application may be healthy but traffic cannot reach it correctly from outside the cluster. This is not the first tool for application runtime exceptions inside the container.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -112,7 +112,7 @@ export const LIST_INGRESS_BY_NS_TOOL = {
 
 export const NONE_TOOL = {
   name: 'none',
-  description: 'Return this tool when the current user input does not require querying cluster resources right now, such as greetings, thanks, confirmations, clarification-only replies, or discussion/questions that can be answered from existing context. Do not use this tool if answering the current request depends on checking live cluster or namespace state.',
+  description: 'Return this tool when the current user input does not require querying cluster resources right now, such as greetings, thanks, confirmations, clarification-only replies, or discussion/questions that can be answered from existing context. Also use this when the current turn is only continuing an explanation of already retrieved results and no fresh cluster state is needed. Do not use this tool if answering the current request depends on checking live cluster or namespace state.',
   inputSchema: {
     type: 'object',
     properties: {},
@@ -133,7 +133,7 @@ export type ListCronjobsByNsInput = z.infer<typeof ListCronjobsByNsInputSchema>;
 
 export const LIST_CRONJOBS_BY_NS_TOOL = {
   name: 'list_cronjobs_by_ns',
-  description: 'List CronJob resources in a namespace. Use this when users report issues with scheduled tasks, Laf Cron Triggers (定时任务), or background batch jobs failing to execute.',
+  description: 'List CronJob resources in a namespace. Prefer this when users report scheduled tasks not running, tasks running at the wrong time, repeated scheduled job failures, missing batch executions, or Laf Cron Trigger (定时任务) problems. This is the scheduling-layer tool, not the primary tool for diagnosing runtime stdout/stderr inside an already identified pod.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -155,7 +155,7 @@ export type ListEventsByNsInput = z.infer<typeof ListEventsByNsInputSchema>;
 
 export const LIST_EVENTS_BY_NS_TOOL = {
   name: 'list_events_by_ns',
-  description: 'List Event resources (last 100). CRITICAL TOOL for debugging. Use this whenever an app/DevBox is constantly restarting, stuck in "Evicted" or "Pending", or crashed to check for OOMKilled, ephemeral-storage issues, or pulling image errors.',
+  description: 'List recent Kubernetes events (last 100) in a namespace. Prefer this for Kubernetes or platform lifecycle failures rather than application stdout/stderr, such as Pending, FailedScheduling, ErrImagePull, ImagePullBackOff, Evicted, OOMKilled, mount failures, probe failures, node issues, or workloads stuck in preparing before the main process is actually running. This is usually the first step when the platform may be preventing the workload from starting correctly.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -181,7 +181,7 @@ export type ListDebtByNsInput = z.infer<typeof ListDebtByNsInputSchema>;
 
 export const LIST_DEBT_BY_NS_TOOL = {
   name: 'list_debt_by_ns',
-  description: 'List Debt CRD resources in a namespace. Use this when users report their instances are suspended, deleted, or show "detect abnormal" after recharging, to verify billing arrears (欠费停机) or grace period status.',
+  description: 'List Debt CRD resources in a namespace. Prefer this when users report instances being suspended, stopped, deleted, still abnormal after recharge, or showing signs of billing-related shutdown. Use this to diagnose arrears (欠费), grace-period, or post-recharge recovery issues rather than application runtime failures.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -203,7 +203,7 @@ export type ListObjectStorageBucketByNsInput = z.infer<typeof ListObjectStorageB
 
 export const LIST_OBJECTSTORAGEBUCKET_BY_NS_TOOL = {
   name: 'list_objectstoragebucket_by_ns',
-  description: 'List ObjectStorageBucket CRD resources. Use this when users report issues with Sealos Object Storage (对象存储), bucket access permissions (public/private), static website hosting, or SDK connection.',
+  description: 'List ObjectStorageBucket CRD resources in a namespace. Prefer this when users report Sealos Object Storage (对象存储) problems such as bucket not existing, bucket access permission issues, public/private policy problems, static website hosting problems, SDK connection errors, or bucket-level configuration issues. Do not use PVC tools for these object storage bucket problems.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -225,7 +225,7 @@ export type ListCertificateByNsInput = z.infer<typeof ListCertificateByNsInputSc
 
 export const LIST_CERTIFICATE_BY_NS_TOOL = {
   name: 'list_certificate_by_ns',
-  description: 'List Certificate CRD resources in a namespace. Use this to troubleshoot HTTPS, SSL certificate issuance, or renewal failures typically associated with Custom Domains (自定义域名) and ICP filing (备案) issues.',
+  description: 'List Certificate CRD resources in a namespace. Prefer this when users report HTTPS failures, SSL certificate issuance or renewal problems, custom domain certificate errors, or ICP filing (备案) related certificate issues, especially when the domain is configured but secure access is still failing.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -246,7 +246,7 @@ export type ListDeploymentsByNsInput = z.infer<typeof ListDeploymentsByNsInputSc
 
 export const LIST_DEPLOYMENTS_BY_NS_TOOL = {
   name: 'list_deployments_by_ns',
-  description: 'List Deployment resources in a namespace. Use this specifically to inspect the underlying configuration of stateless apps in Sealos App Launchpad (应用管理). Prefer using list_apps_by_ns unless you specifically need to isolate stateless workloads.',
+  description: 'List Deployment resources in a namespace. Prefer this when you specifically need to isolate stateless application workloads after identifying that the issue belongs to Sealos App Launchpad (应用管理), especially for configuration diagnosis such as replica state, image rollout, stateless workload readiness, or confirming that the target app is managed as a Deployment. Prefer list_apps_by_ns first unless stateless workloads must be isolated.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -267,7 +267,7 @@ export type ListStatefulSetsByNsInput = z.infer<typeof ListStatefulSetsByNsInput
 
 export const LIST_STATEFULSETS_BY_NS_TOOL = {
   name: 'list_statefulsets_by_ns',
-  description: 'List StatefulSet resources in a namespace. Use this to inspect the configuration of applications in Sealos App Launchpad (应用管理) that utilize persistent storage (持久化存储) or volume mounts. Prefer using list_apps_by_ns unless diagnosing specific stateful volume issues.',
+  description: 'List StatefulSet resources in a namespace. Prefer this when you specifically need to isolate stateful application workloads after identifying that the issue belongs to Sealos App Launchpad (应用管理), especially for persistent storage, mounted data paths, volume-backed workloads, replica identity, or confirming that the target app is managed as a StatefulSet. Prefer list_apps_by_ns first unless stateful workloads must be isolated.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -288,7 +288,7 @@ export type ListAppsByNsInput = z.infer<typeof ListAppsByNsInputSchema>;
 
 export const LIST_APPS_BY_NS_TOOL = {
   name: 'list_apps_by_ns',
-  description: 'List application workloads (combined Deployments and StatefulSets) in a namespace. This is the PRIMARY tool to check the configuration of Sealos App Launchpad (应用管理) apps. Use this when users report issues with environment variables (环境变量), startup commands (启动命令), image names, or general app configuration updates not taking effect.',
+  description: 'List application workloads (combined Deployments and StatefulSets) in a namespace. This is the PRIMARY tool for configuration-level diagnosis of Sealos App Launchpad (应用管理) apps, especially when users report environment variables not taking effect, startup commands being wrong, image names or versions being incorrect, ports being misconfigured, storage settings being wrong, or general app configuration changes not applying as expected. This is not the primary tool for runtime stdout/stderr evidence.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -309,7 +309,7 @@ export type ListPvcsByNsInput = z.infer<typeof ListPvcsByNsInputSchema>;
 
 export const LIST_PVCS_BY_NS_TOOL = {
   name: 'list_pvcs_by_ns',
-  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Use this to inspect storage usage and volume status when users report persistent storage (持久化存储), mounted data, disk capacity, PVC Pending/Bound issues, or application/database data volume problems. STRICTLY DO NOT use this for Object Storage (对象存储) bucket issues.',
+  description: 'List PersistentVolumeClaim (PVC) resources in a namespace. Prefer this when users report persistent storage (持久化存储) problems such as disk full, storage capacity exhaustion, PVC Pending or Bound issues, mounted data not appearing, volume attach problems, or application/database local volume problems. STRICTLY DO NOT use this for Object Storage (对象存储) bucket issues.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -330,7 +330,7 @@ export type GetLogsByNsInput = z.infer<typeof GetLogsByNsInputSchema>;
 
 export const GET_LOGS_BY_NS_TOOL = {
   name: 'get_logs_by_ns',
-  description: 'Get recent container logs for the most relevant runtime workload in a namespace. Use this when stdout/stderr evidence is needed to diagnose Sealos App Launchpad apps, databases, or DevBox instances.',
+  description: 'Get recent container logs from the most relevant runtime workload in a namespace. The tool can automatically resolve the target pod and container from ticket context, so the user does NOT need to provide an exact pod name. Prefer this when the problem likely comes from the application or process itself, such as startup failures, repeated restarts, CrashLoopBackOff, entrypoint or command errors, runtime exceptions, backend startup failures, "local works but Sealos fails", application-level connection/subscription errors, or cases where the service is running but business behavior is abnormal. Do NOT prefer this as the first step for Pending, FailedScheduling, ImagePullBackOff, PVC/storage, custom domain/Ingress/SSL, quota, or billing issues unless runtime stdout/stderr evidence is clearly needed after other checks.',
   inputSchema: {
     type: 'object',
     properties: {
