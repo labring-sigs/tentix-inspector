@@ -399,6 +399,40 @@ function compareCandidates(a: ScoredPodCandidate, b: ScoredPodCandidate): number
   return a.podName.localeCompare(b.podName);
 }
 
+function getWorkloadPrefixAmbiguousCandidates(
+  matchedCandidate: ScoredPodCandidate,
+  candidates: ScoredPodCandidate[],
+  queryText: string
+): ScoredPodCandidate[] {
+  // If the user already named the exact pod, keep the current direct resolution behavior.
+  if (matchesQuery(queryText, matchedCandidate.podName)) {
+    return [];
+  }
+
+  const matchedWorkloadName = matchedCandidate.workloadName.trim().toLowerCase();
+
+  if (matchedWorkloadName === '' || matchedWorkloadName === 'unknown') {
+    return [];
+  }
+
+  const siblingCandidates = candidates.filter((candidate) => {
+    if (candidate.podName === matchedCandidate.podName) {
+      return false;
+    }
+
+    const candidateWorkloadName = candidate.workloadName.trim().toLowerCase();
+
+    return (
+      candidateWorkloadName !== '' &&
+      candidateWorkloadName !== 'unknown' &&
+      candidateWorkloadName !== matchedWorkloadName &&
+      candidateWorkloadName.startsWith(matchedWorkloadName)
+    );
+  });
+
+  return siblingCandidates.length > 0 ? [matchedCandidate, ...siblingCandidates] : [];
+}
+
 function resolvePodCandidate(
   pods: k8s.V1Pod[],
   moduleHint: ModuleHint,
@@ -411,6 +445,21 @@ function resolvePodCandidate(
   const textMatched = candidates.filter((candidate) => candidate.textScore > 0);
 
   if (textMatched.length === 1) {
+    const workloadPrefixAmbiguousCandidates = getWorkloadPrefixAmbiguousCandidates(
+      textMatched[0],
+      candidates,
+      queryText
+    );
+
+    if (workloadPrefixAmbiguousCandidates.length > 0) {
+      return {
+        type: 'ambiguous_pod',
+        message:
+          'The matched workload name is also a prefix of other workload candidates; unable to choose a single target safely.',
+        candidates: workloadPrefixAmbiguousCandidates.slice(0, 5).map(toPublicCandidate),
+      };
+    }
+
     return {
       type: 'resolved',
       candidate: textMatched[0],

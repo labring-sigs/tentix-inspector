@@ -112,7 +112,7 @@ export const LIST_INGRESS_BY_NS_TOOL = {
 
 export const NONE_TOOL = {
   name: 'none',
-  description: 'Return this tool when the current user input does not require querying cluster resources right now, such as greetings, thanks, confirmations, clarification-only replies, or discussion/questions that can be answered from existing context. Also use this when the current turn is only continuing an explanation of already retrieved results and no fresh cluster state is needed. Do not use this tool if answering the current request depends on checking live cluster or namespace state.',
+  description: 'Return this tool when the current user input does not require querying cluster resources right now, such as greetings, thanks, or discussion/questions that can be answered from existing context. Also use this when the current turn is only continuing an explanation of already retrieved results and no fresh cluster state is needed. Do not use this tool if the user is correcting, clarifying, or refining a previous query target, refusing escalation but still expecting troubleshooting to continue, or if the previous diagnosis was directed at the wrong resource and the user is redirecting to a different one. Do not use this tool if answering the current request depends on checking live cluster or namespace state.',
   inputSchema: {
     type: 'object',
     properties: {},
