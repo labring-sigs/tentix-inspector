@@ -4,6 +4,7 @@ dotenv.config(); // 1. 加载 .env
 import * as path from 'path';
 import { KubernetesClient } from '../kubernetes/client';
 import { ChatOpenAI } from "@langchain/openai"; // 2. 引入 OpenAI 适配器
+import { z } from 'zod';
 
 // 导入工具定义和函数
 import {
@@ -184,7 +185,14 @@ const TOOLS = {
   },
 } as const;
 
-type ToolName = keyof typeof TOOLS;
+type ToolName = Extract<keyof typeof TOOLS, string>;
+
+const TOOL_NAMES = Object.keys(TOOLS) as [ToolName, ...ToolName[]];
+
+const routerDecisionSchema = z.object({
+  selectedTool: z.enum(TOOL_NAMES),
+  toolInput: z.record(z.unknown()).default({}),
+});
 
 type RouterMessageContentItem =
   | { type: 'text'; text: string }
@@ -299,30 +307,31 @@ async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
 
   const userContext = buildRouterUserContext(state);
   const routerUserContent = buildRouterUserContent(state);
+  const structuredRouter = llm.withStructuredOutput(routerDecisionSchema);
 
   async function invokeRouter(content: string | RouterMessageContentItem[]) {
-    const response = await llm.invoke([
+    const decision = await structuredRouter.invoke([
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: content as any }
     ]);
+    console.log('[Router] AI structured decision:', JSON.stringify(decision));
 
-    const rawContent =
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content);
-    console.log('[Router] AI raw response:', rawContent);
-
-    const cleanedContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
-    const decision = JSON.parse(cleanedContent);
-    const selectedTool = typeof decision.selectedTool === 'string' ? decision.selectedTool : '';
+    const selectedTool = decision.selectedTool;
 
     if (!Object.prototype.hasOwnProperty.call(TOOLS, selectedTool)) {
       throw new Error(`[Router] AI selected unsupported tool: ${selectedTool}`);
     }
 
+    const toolInput =
+      decision.toolInput &&
+      typeof decision.toolInput === 'object' &&
+      !Array.isArray(decision.toolInput)
+        ? decision.toolInput
+        : {};
+
     return {
       selectedTool: selectedTool as ToolName,
-      toolInput: decision.toolInput || {}
+      toolInput
     };
   }
 
@@ -337,7 +346,7 @@ async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
 
     return await invokeRouter(userContext);
   } catch (error) {
-    console.error("[Router] AI parsing failed, falling back to list_pods", error);
+    console.error("[Router] AI structured routing failed, falling back to list_pods", error);
     // 兜底逻辑
     return { 
       selectedTool: 'list_pods_by_ns', 
