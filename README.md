@@ -1,165 +1,308 @@
 # Sealos SRE Agent
 
-这是一个 Node/TypeScript 写的小型 SRE Agent，用于在指定 Kubernetes 集群/namespace 上执行查询类操作。
+面向 Sealos 场景的 Kubernetes 查询 Agent。当前项目以 HTTP 服务形式运行，通过 `POST /api/skills` 接收工单上下文、`zone` 和 `namespace`，先从对应区域集群获取用户 kubeconfig，再由 LLM 在预置工具中选择最合适的查询动作，最终返回结构化 JSON 结果。
 
-核心能力：
+当前维护的主入口是 `src/server/http-server.ts`。仓库中保留了历史 `src/server/index.ts`（MCP/stdio 入口），但它已被 `tsconfig.json` 排除，不属于当前默认运行路径。
 
-- 通过本地 `kubeconfig/` 连接到不同集群（按 `zone` 选择 kubeconfig）
-- 使用 LLM 根据工单/上下文自动选择最合适的“工具”(tool)
-- 执行对应的 Kubernetes 查询，并返回结构化 JSON
+## 功能概览
 
-当前主要支持的运行方式是 HTTP 服务（`POST /api/skills`）。
+- 单一 HTTP 入口：对外暴露 `POST /api/skills`
+- 多区域访问：根据 `zone` 选择本地 `kubeconfig`，再拉取用户级 kubeconfig 执行后续查询
+- AI 路由：结合工单标题、描述、会话历史、最新消息和图片 URL 自动选择工具
+- Namespace 强约束：
+  - `zone` 和 `namespace` 只接受 URL query string
+  - 请求体里的同名字段会被忽略
+  - `namespace` 必须符合 `ns-...` 格式
+  - 实际执行时会强制使用 query 中的 `namespace`，不信任模型返回值
+- 故障兜底：
+  - 路由失败时自动回退到 `list_pods_by_ns`
+  - 当前输入不需要实时查询时返回 `204 No Content`
+  - 超时错误会映射为 `504`
 
-## 目录与文件作用
+## 工作流程
 
-- `src/server/http-server.ts`
-  - HTTP 入口（Express）。
-  - 对外提供 `POST /api/skills`，把请求交给 Agent 执行并返回结果。
+1. HTTP 服务校验请求体，并从 query string 读取 `zone` 与 `namespace`
+2. Agent 根据 `zone` 选择本地 kubeconfig
+3. Agent 使用 zone 级凭据读取 `users.user.sealos.io/v1` 的 `users/<username>` 资源
+4. 从 `User.status.kubeConfig` 取出用户 kubeconfig
+5. LLM 根据工单上下文选择工具，并生成工具输入
+6. 执行对应的 Kubernetes/Sealos 查询，返回统一结构的 JSON
 
-- `src/server/agent/graph.ts`
-  - Agent 工作流（LangGraph）：`init -> router(LLM) -> executor`。
-  - 负责：加载 `.env`、按 `zone` 选择 kubeconfig、调用 LLM 决策 tool、执行 tool。
+其中 `<username>` 由 `namespace` 去掉前缀 `ns-` 后得到，例如 `ns-demo` 会映射为用户 `demo`。
 
-- `src/server/kubernetes/client.ts`
-  - 基于 `@kubernetes/client-node` 的简单封装（CoreV1/CustomObjects/Ingress/CronJob 等）。
+## 已注册工具
 
-- `src/server/tools/*.ts`
-  - 各类 tool 的具体实现（list pods/devbox/cluster/quota/ingress/events...）。
+当前 HTTP Agent 在 `src/server/agent/graph.ts` 中注册了以下工具：
 
-- `kubeconfig/`
-  - 存放 kubeconfig（敏感文件，不应提交到 git）。
+### 基础 Kubernetes 查询
 
-- `dist/`
-  - `tsc` 的编译产物。
+- `list_pods_by_ns`：列出 Pod，适合作为默认首查入口
+- `list_events_by_ns`：列出最近事件，适合排查调度、拉镜像、探针、挂载等失败
+- `list_cronjobs_by_ns`：列出定时任务
+- `list_ingress_by_ns`：列出域名与 Ingress 暴露配置
+- `list_pvcs_by_ns`：列出 PVC 与持久化存储情况
 
-说明：`src/server/index.ts` 是一个 MCP(stdio) server 入口，但目前被 `tsconfig.json` 排除了（默认 `npm run build` 不会产出对应的 `dist/server/index.js`）。
+### 应用与运行态查询
 
-## 前置条件
+- `list_apps_by_ns`：聚合 Deployment 与 StatefulSet，适合应用配置排查
+- `list_deployments_by_ns`：仅查询 Deployment
+- `list_statefulsets_by_ns`：仅查询 StatefulSet
+- `get_logs_by_ns`：自动解析最相关的 Pod/Container 并抓取日志，必要时返回候选项而不是直接失败
 
-- Node.js >= 18
-- 可用的 kubeconfig（能访问对应集群）
-- 一个 OpenAI-compatible 的 LLM 接口地址 + API Key
+### Sealos 资源查询
 
-## 配置
+- `list_devbox_by_ns`：查询 DevBox 资源
+- `list_cluster_by_ns`：查询数据库集群资源
+- `list_quota_by_ns`：查询资源配额
+- `list_debt_by_ns`：查询欠费相关资源
+- `list_objectstoragebucket_by_ns`：查询对象存储 Bucket 资源
+- `list_certificate_by_ns`：查询证书资源
 
-### 1) 新建 `.env`
+### 控制流
 
-需要的环境变量：
+- `none`：当前轮输入不需要查询实时集群状态时返回；HTTP 层会把它转换为 `204 No Content`
 
-```bash
-# 必填
-AI_API_KEY=...
-AI_BASE_URL=https://your-openai-compatible-endpoint
+## 环境要求
 
-# 可选（默认：gemini-1.5-flash）
-AI_MODEL=gemini-1.5-flash
+- Node.js `>= 18`
+- 可访问目标 Kubernetes 集群的 kubeconfig
+- 一个兼容 OpenAI API 的模型服务
 
-# 可选 HTTP 端口（默认：3000）
-PORT=3000
-```
-
-`AI_BASE_URL` 会被自动规范化为以 `/v1` 结尾。
-
-### 2) 准备 `kubeconfig/`
-
-`zone` 与 kubeconfig 文件名的映射在 `src/server/agent/graph.ts` 里：
-
-- `hzh` -> `kubeconfig/hzh-kubeconfig`
-- `bja` -> `kubeconfig/bja-kubeconfig`
-- `gzg` -> `kubeconfig/gzg-kubeconfig`
-- `default` -> `kubeconfig/Mykubeconfig`(test)
-
-## 如何运行
-
-安装依赖：
+## 安装
 
 ```bash
 npm install
 ```
-### 生产模式（编译 + 运行）
+
+## 配置
+
+### 1. 环境变量
+
+创建或更新项目根目录下的 `.env`：
+
+```bash
+# 必填
+AI_API_KEY=your_api_key
+AI_BASE_URL=https://your-openai-compatible-endpoint
+
+# 可选，默认 gemini-1.5-flash
+AI_MODEL=gemini-1.5-flash
+
+# 可选，默认 3000
+PORT=3000
+
+# 可选，默认 35000（毫秒）
+LLM_TIMEOUT_MS=35000
+
+# 可选，默认 60000（毫秒）
+K8S_REQUEST_TIMEOUT_MS=60000
+
+# 可选，工具描述覆盖文件路径（JSON）
+TOOLS_DESC_OVERRIDE_FILE=./tool-descriptions.json
+```
+
+说明：
+
+- `AI_BASE_URL` 会在运行时自动补成以 `/v1` 结尾的地址
+- `.env` 属于敏感配置，不应提交到版本库
+
+### 2. kubeconfig 文件
+
+项目按 `zone` 读取本地 kubeconfig 文件：
+
+- `hzh` -> `kubeconfig/hzh-kubeconfig`
+- `bja` -> `kubeconfig/bja-kubeconfig`
+- `gzg` -> `kubeconfig/gzg-kubeconfig`
+- `default` -> `kubeconfig/Mykubeconfig`
+
+注意：
+
+- `kubeconfig/` 目录中的内容属于敏感凭据，不应提交
+- 如果你要使用某个 `zone`，必须提前准备对应文件
+
+## 运行方式
+
+### 开发模式
+
+```bash
+npm run dev:http
+```
+
+默认监听 `http://localhost:3000`。
+
+### 生产模式
 
 ```bash
 npm run build
-npm start
+npm run start:http
 ```
 
-`npm start` 等价于 `npm run start:http`。
-
-### 开发模式（ts-node）
+### 其他可用脚本
 
 ```bash
-npm run dev
+npm run watch
 ```
 
-`npm run dev` 等价于 `npm run dev:http`。
+说明：
 
-`npm run dev` / `npm run dev:http` 会设置 `NODE_ENV=development`；`npm start` / `npm run start:http` 会设置 `NODE_ENV=production`。
+- `npm run dev` 等价于 `npm run dev:http`
+- `npm run start` 等价于 `npm run start:http`
+- `npm run dev:client` 和 `npm run start:client` 当前没有可用的 `src/client`，不要使用
 
-默认监听：`http://localhost:3000`（或 `PORT` 指定的端口）。
-
-说明：`npm run start:client` / `npm run dev:client` 目前仓库未包含 `src/client`，默认会运行失败。
-
-## HTTP API
+## API 使用
 
 ### `POST /api/skills`
 
-- Query 参数：
-  - `zone`：可选，默认 `default`
-  - `namespace`：必填（如果 body 里没传）
-- JSON body（除 `namespace` 规则外，均可选）：
-  - `zone`
-  - `namespace`
-  - `ticketTitle`
-  - `ticketModule`
-  - `ticketDescription`
-  - `historyMessages`
-  - `latestMessage`
-  - `latestMessageImages`（string 数组）
+请求规则：
 
-示例：
+- `zone`：必填，放在 query string
+- `namespace`：必填，放在 query string，且必须满足 `ns-...`
+- 请求体可传工单上下文，但其中的 `zone` / `namespace` 不会生效
+
+请求体字段：
+
+- `ticketTitle`
+- `ticketModule`
+- `ticketCategory`
+- `ticketDescription`
+- `historyMessages`
+- `latestMessage`
+- `latestMessageImages`
+
+`latestMessageImages` 需要传图片 URL 数组。路由阶段最多会携带最近 6 个去重后的 URL；如果视觉路由失败，会自动回退到纯文本路由。
+
+### 请求示例
 
 ```bash
-curl -sS -X POST 'http://localhost:3000/api/skills?zone=hzh&namespace=default' \
+curl -X POST 'http://localhost:3000/api/skills?zone=hzh&namespace=ns-example' \
   -H 'content-type: application/json' \
   -d '{
-    "ticketTitle": "pod status check",
-    "ticketDescription": "please list pods",
-    "latestMessage": "check current pods in this namespace"
+    "ticketTitle": "应用无法启动",
+    "ticketModule": "applaunchpad",
+    "ticketDescription": "用户反馈刚发布的新版本启动失败",
+    "historyMessages": "之前尝试过重启，但问题仍然存在",
+    "latestMessage": "帮我看一下容器日志和当前工作负载状态"
   }'
 ```
 
-响应结构（示例）：
+### 成功响应示例
 
 ```json
 {
   "tool": "list_pods_by_ns",
-  "description": "List all pods in a specific namespace",
+  "description": "...",
   "result": {
-    "namespace": "default",
-    "pods": [],
-    "total": 0,
+    "namespace": "ns-example",
+    "pods": [
+      {
+        "name": "app-7d4f7c7f8f-rx2fk",
+        "namespace": "ns-example",
+        "status": "Running",
+        "ip": "10.0.0.12",
+        "node": "node-a"
+      }
+    ],
+    "total": 1,
     "success": true
   }
 }
 ```
 
-## 已注册的 Tools（HTTP Agent）
+### 响应语义
 
-HTTP Agent 侧注册列表以 `src/server/agent/graph.ts` 为准：
+- `200`：成功返回某个工具结果
+- `204`：Agent 认为当前轮不需要执行集群查询
+- `400`：缺少 `zone` 或 `namespace`
+- `500`：服务内部错误
+- `502`：下游查询失败或 Agent 未能生成有效结果
+- `504`：LLM 或 Kubernetes 请求超时
 
-- `list_pods_by_ns`
-- `list_devbox_by_ns`
-- `list_cluster_by_ns`
-- `list_quota_by_ns`
-- `list_ingress_by_ns`
-- `list_cronjobs_by_ns`
-- `list_events_by_ns`
-- `list_debt_by_ns`
-- `list_objectstoragebucket_by_ns`
-- `list_certificate_by_ns`
+## 返回数据结构
+
+HTTP 成功响应统一为：
+
+```json
+{
+  "tool": "selected_tool_name",
+  "description": "tool description",
+  "result": {}
+}
+```
+
+其中 `result` 会根据工具不同返回不同字段，但大多数工具都会包含：
+
+- `namespace`
+- 资源列表字段，例如 `pods`、`apps`、`events`、`pvcs`
+- `total`
+- `success`
+- 失败时附带 `error`
+
+`get_logs_by_ns` 额外会返回如下信息：
+
+- `resolution`：`resolved`、`ambiguous_pod`、`ambiguous_container` 或 `no_match`
+- `selectedPod`
+- `selectedContainer`
+- `logSource`：`current` 或 `previous`
+- `logs`
+- `podCandidates` / `containerCandidates`
+
+## 开发说明
+
+### 目录结构
+
+```text
+src/server/
+├── http-server.ts         # HTTP 服务入口
+├── agent/graph.ts         # Agent 初始化、LLM 路由、工具执行
+├── kubernetes/            # Kubernetes 客户端封装与类型定义
+└── tools/                 # 各类 Kubernetes / Sealos 查询工具
+```
+
+补充说明：
+
+- `dist/`：TypeScript 编译产物
+- `kubeconfig/`：本地集群凭据目录，敏感信息
+- `src/server/index.ts`：历史 MCP 入口，默认不参与构建
+
+### 本地验证
+
+项目当前没有提交自动化测试框架。修改后建议至少执行：
+
+```bash
+npm run build
+npm run dev:http
+```
+
+然后再发一个本地请求进行 smoke test：
+
+```bash
+curl -X POST 'http://localhost:3000/api/skills?zone=hzh&namespace=ns-example' \
+  -H 'content-type: application/json' \
+  -d '{"latestMessage":"列出当前命名空间的 Pod"}'
+```
 
 ## 常见问题
 
-- LLM 返回内容解析失败时，会降级执行 `list_pods_by_ns`。
-- Kubernetes 请求失败时，优先检查：`zone` 是否正确、对应 kubeconfig 是否存在且有权限。
-- `.env` 和 `kubeconfig/` 是敏感信息，仓库默认忽略它们是预期行为。
+### 返回 `400 zone is required` 或 `400 namespace is required`
+
+请确认两个参数写在 URL query string 中，而不是 JSON body 中。
+
+### 返回 `Invalid namespace format, expected ns-xxx`
+
+当前 Agent 只接受 `ns-...` 格式的 namespace，例如 `ns-demo`。
+
+### 返回 `Unsupported zone`
+
+请确认 `zone` 在当前代码支持的映射中，并且对应 kubeconfig 文件已经准备好。
+
+### 路由结果不符合预期
+
+当模型结构化输出失败时，服务会自动降级到 `list_pods_by_ns`。如果你希望调优路由，可通过 `TOOLS_DESC_OVERRIDE_FILE` 覆盖工具描述。
+
+### 日志工具没有直接返回日志
+
+`get_logs_by_ns` 会先尝试自动定位目标 Pod 与容器；如果候选项过多，它会返回 `ambiguous_pod` 或 `ambiguous_container`，让上游继续缩小范围。
+
+## License
+
+MIT
