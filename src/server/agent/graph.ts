@@ -1,7 +1,11 @@
 import * as dotenv from "dotenv";
 dotenv.config(); // 1. 加载 .env
 
+import { createHash } from 'crypto';
+import * as fs from 'fs';
 import * as path from 'path';
+import { inspect } from 'util';
+import * as k8s from '@kubernetes/client-node';
 import { KubernetesClient } from '../kubernetes/client';
 import { ChatOpenAI } from "@langchain/openai"; // 2. 引入 OpenAI 适配器
 import { z } from 'zod';
@@ -48,15 +52,109 @@ const AI_API_KEY = process.env.AI_API_KEY;
 const AI_BASE_URL = process.env.AI_BASE_URL;
 const AI_MODEL = process.env.AI_MODEL || "gemini-1.5-flash";
 const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 35_000);
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// >>>>>> 新增这几行调试代码 >>>>>>
-console.log("--------------------------------------------------");
-console.log("[DEBUG] Current CWD:", process.cwd());
-console.log("[DEBUG] AI_MODEL:", AI_MODEL);
-console.log("[DEBUG] AI_API_KEY Type:", typeof AI_API_KEY);
-console.log("[DEBUG] AI_API_KEY Length:", AI_API_KEY ? AI_API_KEY.length : "Missing/Undefined");
-console.log("--------------------------------------------------");
-// <<<<<< 结束新增 <<<<<<
+function logDevelopment(...args: unknown[]): void {
+  if (isDevelopment) {
+    console.log(...args);
+  }
+}
+
+function formatLogValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return inspect(value, {
+    depth: 8,
+    colors: false,
+    maxArrayLength: 50,
+    breakLength: 120,
+  });
+}
+
+function buildKubeconfigSummary(kubeconfig: string): Record<string, unknown> {
+  const summary: Record<string, unknown> = {
+    bytes: Buffer.byteLength(kubeconfig, 'utf8'),
+    lineCount: kubeconfig === '' ? 0 : kubeconfig.split(/\r?\n/).length,
+    sha256: createHash('sha256').update(kubeconfig).digest('hex').slice(0, 12),
+  };
+
+  try {
+    const kubeConfig = new k8s.KubeConfig();
+    kubeConfig.loadFromString(kubeconfig);
+    summary.currentContext = kubeConfig.getCurrentContext();
+    summary.clusterCount = kubeConfig.getClusters().length;
+    summary.contextCount = kubeConfig.getContexts().length;
+    summary.userCount = kubeConfig.getUsers().length;
+  } catch (error) {
+    summary.parseError = error instanceof Error ? error.message : 'Unknown parse error';
+  }
+
+  return summary;
+}
+
+function loadToolDescriptionOverrides(
+  availableToolNames: string[]
+): Record<string, string> {
+  const overrideFile = process.env.TOOLS_DESC_OVERRIDE_FILE?.trim();
+  if (!overrideFile) {
+    return {};
+  }
+
+  const resolvedOverrideFile = path.isAbsolute(overrideFile)
+    ? overrideFile
+    : path.resolve(process.cwd(), overrideFile);
+
+  if (!fs.existsSync(resolvedOverrideFile)) {
+    return {};
+  }
+
+  const availableToolNameSet = new Set(availableToolNames);
+
+  try {
+    const fileContent = fs.readFileSync(resolvedOverrideFile, 'utf8');
+    const parsed = JSON.parse(fileContent);
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      console.error(
+        `[Router] Invalid tool description override file format: ${resolvedOverrideFile}`
+      );
+      return {};
+    }
+
+    const overrides: Record<string, string> = {};
+    const overriddenToolNames: string[] = [];
+
+    for (const [toolName, description] of Object.entries(parsed)) {
+      if (!availableToolNameSet.has(toolName)) {
+        continue;
+      }
+      if (typeof description !== 'string') {
+        continue;
+      }
+
+      overrides[toolName] = description;
+      overriddenToolNames.push(toolName);
+    }
+
+    if (overriddenToolNames.length > 0) {
+      console.error(
+        `[Router] Tool description overrides applied: ${overriddenToolNames.join(', ')}`
+      );
+    }
+
+    return overrides;
+  } catch (error) {
+    console.error('[Router] Failed to load tool description override file:', error);
+    return {};
+  }
+}
+
+logDevelopment('[DEBUG] Current CWD:', process.cwd());
+logDevelopment('[DEBUG] AI_MODEL:', AI_MODEL);
+logDevelopment('[DEBUG] AI_API_KEY Type:', typeof AI_API_KEY);
+logDevelopment('[DEBUG] AI_API_KEY Length:', AI_API_KEY ? AI_API_KEY.length : 'Missing/Undefined');
 
 
 // 检查配置
@@ -185,6 +283,8 @@ const TOOLS = {
   },
 } as const;
 
+const TOOL_DESCRIPTION_OVERRIDES = loadToolDescriptionOverrides(Object.keys(TOOLS));
+
 type ToolName = Extract<keyof typeof TOOLS, string>;
 
 const TOOL_NAMES = Object.keys(TOOLS) as [ToolName, ...ToolName[]];
@@ -193,6 +293,11 @@ const routerDecisionSchema = z.object({
   selectedTool: z.enum(TOOL_NAMES),
   toolInput: z.record(z.unknown()).default({}),
 });
+type RouterDecision = z.infer<typeof routerDecisionSchema>;
+type RouterStructuredResponse = {
+  raw: unknown;
+  parsed: RouterDecision | null;
+};
 
 type RouterMessageContentItem =
   | { type: 'text'; text: string }
@@ -230,7 +335,10 @@ function buildRouterUserContent(state: AgentState): string | RouterMessageConten
 
 // 自动生成 AI Prompt (无需手动维护两份列表)
 const GENERATED_TOOLS_DESC = Object.entries(TOOLS)
-  .map(([name, tool], index) => `${index + 1}. ${name}: ${tool.description}`)
+  .map(([name, tool], index) => {
+    const description = TOOL_DESCRIPTION_OVERRIDES[name] ?? tool.description;
+    return `${index + 1}. ${name}: ${description}`;
+  })
   .join('\n');
 
 const SYSTEM_PROMPT = `
@@ -256,6 +364,9 @@ Structure:
 }
 Note: If the tool is 'none', 'toolInput' should be empty object {}.
 `;
+
+const structuredRouter = llm.withStructuredOutput(routerDecisionSchema);
+const structuredRouterWithRaw = llm.withStructuredOutput(routerDecisionSchema, { includeRaw: true });
 
 // --- Node 1: Init ---
 async function initContextNode(state: AgentState): Promise<Partial<AgentState>> {
@@ -292,9 +403,11 @@ async function initContextNode(state: AgentState): Promise<Partial<AgentState>> 
     throw new Error('[Agent] Failed to get user kubeconfig from User.status.kubeConfig');
   }
 
-  // 允许日志出现 kubeconfig（按你的要求），但建议至少加一个明显的前缀便于 grep/审计
   console.error(`[Agent] User kubeconfig fetched for user=${userName} zone=${selectedZone}`);
-  console.error(`[Agent] User kubeconfig content:\n${userKubeconfig}`);
+  logDevelopment(
+    '[Agent] User kubeconfig summary:',
+    JSON.stringify(buildKubeconfigSummary(userKubeconfig))
+  );
 
   // 3) user client: all subsequent tools will use this client (user cluster only)
   const userClient = new KubernetesClient(undefined, userKubeconfig);
@@ -307,13 +420,27 @@ async function routerNode(state: AgentState): Promise<Partial<AgentState>> {
 
   const userContext = buildRouterUserContext(state);
   const routerUserContent = buildRouterUserContent(state);
-  const structuredRouter = llm.withStructuredOutput(routerDecisionSchema);
 
   async function invokeRouter(content: string | RouterMessageContentItem[]) {
-    const decision = await structuredRouter.invoke([
+    const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: content as any }
-    ]);
+    ];
+    let decision: RouterDecision;
+
+    if (isDevelopment) {
+      const rawResponse = await structuredRouterWithRaw.invoke(messages) as RouterStructuredResponse;
+      logDevelopment('[Router] AI raw response:', formatLogValue(rawResponse.raw));
+
+      if (!rawResponse.parsed) {
+        throw new Error('[Router] AI raw response could not be parsed');
+      }
+
+      decision = rawResponse.parsed;
+    } else {
+      decision = await structuredRouter.invoke(messages) as RouterDecision;
+    }
+
     console.log('[Router] AI structured decision:', JSON.stringify(decision));
 
     const selectedTool = decision.selectedTool;

@@ -5,9 +5,11 @@
   "main": "dist/server/index.js",
   "scripts": {
     "build": "tsc",
-    "start:http": "node dist/server/http-server.js",
+    "dev": "npm run dev:http",
+    "start": "npm run start:http",
+    "start:http": "NODE_ENV=production node dist/server/http-server.js",
     "start:client": "node dist/client/index.js",
-    "dev:http": "ts-node src/server/http-server.ts",
+    "dev:http": "NODE_ENV=development ts-node src/server/http-server.ts",
     "dev:client": "ts-node src/client/index.ts",
     "watch": "tsc --watch"
   },

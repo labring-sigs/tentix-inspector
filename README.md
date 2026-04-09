@@ -80,14 +80,20 @@ npm install
 
 ```bash
 npm run build
-npm run start:http
+npm start
 ```
+
+`npm start` 等价于 `npm run start:http`。
 
 ### 开发模式（ts-node）
 
 ```bash
-npm run dev:http
+npm run dev
 ```
+
+`npm run dev` 等价于 `npm run dev:http`。
+
+`npm run dev` / `npm run dev:http` 会设置 `NODE_ENV=development`；`npm start` / `npm run start:http` 会设置 `NODE_ENV=production`。
 
 默认监听：`http://localhost:3000`（或 `PORT` 指定的端口）。
 
