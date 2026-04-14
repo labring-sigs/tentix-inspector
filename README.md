@@ -137,6 +137,36 @@ npm run build
 npm run start:http
 ```
 
+### Docker 镜像
+
+项目根目录提供了 `Dockerfile` 与 `.dockerignore`，默认使用多阶段构建：
+
+- 构建阶段安装完整依赖并执行 `npm run build`
+- 运行阶段只保留生产依赖和 `dist/`
+- `.env` 与 `kubeconfig/` 不会打入镜像，需要在运行容器时注入
+
+构建镜像：
+
+```bash
+docker build -t sealos-sre-agent:local .
+```
+
+运行容器：
+
+```bash
+docker run --rm -p 3000:3000 \
+  --env-file .env \
+  -v "$PWD/kubeconfig:/app/kubeconfig:ro" \
+  sealos-sre-agent:local
+```
+
+说明：
+
+- 容器工作目录是 `/app`
+- 代码会按 `/app/kubeconfig/<zone>-kubeconfig` 读取对应区域凭据
+- `PORT` 默认是 `3000`，如需修改可通过环境变量覆盖
+- 如果使用 `TOOLS_DESC_OVERRIDE_FILE`，请同时把对应文件挂载到容器内，并传入容器内路径
+
 ### 其他可用脚本
 
 ```bash
