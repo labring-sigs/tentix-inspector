@@ -98,13 +98,16 @@ LLM_TIMEOUT_MS=35000
 K8S_REQUEST_TIMEOUT_MS=60000
 
 # 可选，工具描述覆盖文件路径（JSON）
-TOOLS_DESC_OVERRIDE_FILE=./tool-descriptions.json
+TOOLS_DESC_OVERRIDE_FILE=./config/tools-override.json
 ```
 
 说明：
 
 - `AI_BASE_URL` 会在运行时自动补成以 `/v1` 结尾的地址
 - `.env` 属于敏感配置，不应提交到版本库
+- `TOOLS_DESC_OVERRIDE_FILE` 只覆盖各个工具的 description，不会覆盖 `SYSTEM_PROMPT` 本体
+- 当前仓库已提供示例文件 `config/tools-override.json`
+- 覆盖文件必须是 JSON 对象，key 必须是已注册工具名，value 必须是字符串
 
 ### 2. kubeconfig 文件
 
@@ -165,7 +168,32 @@ docker run --rm -p 3000:3000 \
 - 容器工作目录是 `/app`
 - 代码会按 `/app/kubeconfig/<zone>-kubeconfig` 读取对应区域凭据
 - `PORT` 默认是 `3000`，如需修改可通过环境变量覆盖
-- 如果使用 `TOOLS_DESC_OVERRIDE_FILE`，请同时把对应文件挂载到容器内，并传入容器内路径
+- 如果使用 `TOOLS_DESC_OVERRIDE_FILE`，请同时把对应文件挂载到容器内，并传入容器内路径，例如 `/app/config/tools-override.json`
+
+### Tool 描述覆写文件
+
+`TOOLS_DESC_OVERRIDE_FILE` 适合做不改代码的局部路由微调，尤其适合强化工具边界，例如：
+
+- 把 `list_ingress_by_ns` 写得更偏向公网、域名、HTTPS、对外访问
+- 把 `get_logs_by_ns` 写得更偏向启动失败、重启、CrashLoop、运行时异常
+- 把 `list_quota_by_ns` 写得更偏向扩容、资源上限、配额不足
+- 收紧 `none`，避免模型把仍在排障的工单过早归为不查询
+
+示例格式：
+
+```json
+{
+  "list_ingress_by_ns": "Prefer this as the FIRST tool when the main complaint is public access, custom domain, HTTPS, external IP, ingress, or port exposure.",
+  "get_logs_by_ns": "Prefer this as the FIRST tool for startup failure, repeated restart, CrashLoop-like behavior, or runtime exceptions.",
+  "none": "Return this tool only for pure greeting, thanks, acknowledgement, or clearly non-namespace product/account discussion."
+}
+```
+
+注意：
+
+- 未出现在文件中的工具会继续使用代码里的默认 description
+- 覆盖文件路径支持相对路径和绝对路径
+- 修改 override 文件后，需要重启服务进程让新描述生效
 
 ### 其他可用脚本
 
