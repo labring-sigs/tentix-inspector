@@ -291,7 +291,7 @@ const TOOL_NAMES = Object.keys(TOOLS) as [ToolName, ...ToolName[]];
 
 const routerDecisionSchema = z.object({
   selectedTool: z.enum(TOOL_NAMES),
-  toolInput: z.record(z.unknown()).default({}),
+  toolInput: z.object({}).default({}),
 });
 type RouterDecision = z.infer<typeof routerDecisionSchema>;
 type RouterStructuredResponse = {
@@ -358,11 +358,12 @@ You MUST return a strictly valid JSON object. No markdown.
 Structure:
 {
   "selectedTool": "tool_name_from_above",
-  "toolInput": {
-    "namespace": "extracted_namespace_from_context_or_default"
-  }
+  "toolInput": {}
 }
-Note: If the tool is 'none', 'toolInput' should be empty object {}.
+Note:
+- 'toolInput' must always be an empty object {}.
+- Do not add namespace or any extra fields into 'toolInput'.
+- The server will inject the trusted namespace during execution.
 `;
 
 const structuredRouter = llm.withStructuredOutput(routerDecisionSchema);
