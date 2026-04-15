@@ -197,12 +197,14 @@ export type AgentRunnable = {
 };
 
 // Zone 映射
-const ZONE_KUBECONFIG_MAP: Record<string, string> = {
+export const ZONE_KUBECONFIG_MAP: Record<string, string> = {
   hzh: path.join(process.cwd(), 'kubeconfig', 'hzh-kubeconfig'),
   bja: path.join(process.cwd(), 'kubeconfig', 'bja-kubeconfig'),
   gzg: path.join(process.cwd(), 'kubeconfig', 'gzg-kubeconfig'),
-  default: path.join(process.cwd(), 'kubeconfig', 'Mykubeconfig'),
+  io: path.join(process.cwd(), 'kubeconfig', 'io-kubeconfig'),
 };
+
+export const SUPPORTED_ZONES = Object.keys(ZONE_KUBECONFIG_MAP);
 
 // 工具注册表
 const TOOLS = {

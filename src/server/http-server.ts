@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { z } from 'zod';
-import { getAgentRunnable, AgentState } from './agent/graph';
+import { getAgentRunnable, AgentState, SUPPORTED_ZONES } from './agent/graph';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +28,8 @@ function pickQueryString(value: unknown): string | undefined {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+const SUPPORTED_ZONE_SET = new Set(SUPPORTED_ZONES);
 
 function extractErrorText(value: unknown): string {
   if (typeof value === 'string') {
@@ -86,6 +88,11 @@ app.post('/api/skills', async (req: Request, res: Response) => {
     }
     if (!namespace) {
       return res.status(400).json({ error: 'namespace is required' });
+    }
+    if (!SUPPORTED_ZONE_SET.has(zone)) {
+      return res.status(400).json({
+        error: `unsupported zone: ${zone}. supported zones: ${SUPPORTED_ZONES.join(', ')}`,
+      });
     }
 
     const initialState: AgentState = {

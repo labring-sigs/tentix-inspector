@@ -116,7 +116,7 @@ TOOLS_DESC_OVERRIDE_FILE=./config/tools-override.json
 - `hzh` -> `kubeconfig/hzh-kubeconfig`
 - `bja` -> `kubeconfig/bja-kubeconfig`
 - `gzg` -> `kubeconfig/gzg-kubeconfig`
-- `default` -> `kubeconfig/Mykubeconfig`
+- `io` -> `kubeconfig/io-kubeconfig`
 
 注意：
 
