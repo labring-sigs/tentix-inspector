@@ -349,9 +349,41 @@ Available Tools:
 ${GENERATED_TOOLS_DESC}
 
 Tool Selection Rules:
-- Prioritize Latest Message when deciding whether the current user reply needs a cluster query right now.
-- If the current user reply is only a greeting, acknowledgement, thanks, filler, or otherwise does not require any Kubernetes/cluster/namespace resource query, select "none".
-- If the user is clearly asking to inspect, list, check, or troubleshoot cluster resources, do not select "none".
+- Use Ticket Title, Ticket Description, Ticket Module, Ticket Category, History Messages, and Latest Message together as one routing context. Do not rely on Latest Message alone.
+- Select "none" only when the current turn is clearly just a greeting, thanks, acknowledgement, filler, or a pure conversational reply that does not require checking live cluster or namespace state.
+- If the user is still troubleshooting, is asking about current status, is correcting the previous target, or is asking about any live issue related to namespace resources, do not select "none".
+- If the request may depend on current cluster or namespace state, do not select "none" just because the latest message is short or ambiguous.
+- If the user mentions public access, external access, 公网, 外网, domain, 域名, CNAME, host, route, ingress, external IP, HTTPS, SSL, certificate, 证书, port exposure, or "访问不到", prefer "list_ingress_by_ns" as the first live-state check unless the request is specifically about certificate issuance or renewal status.
+- If the user specifically asks about certificate issuance, renewal, or secure certificate status after domain configuration, prefer "list_certificate_by_ns".
+- If the user mentions 欠费, 余额不足, 扣费, 充值后, 费用异常, suspend, release, 被释放, 停服, or post-recharge abnormality, prefer "list_debt_by_ns".
+- If the user mentions DevBox, devbox, VS Code, Cursor, Trae, SSH, remote connection, IDE connection, DevBox startup, restart, release, sharing, or DevBox availability, prefer "list_devbox_by_ns".
+- If the user explicitly asks for logs, stdout, stderr, stack trace, or runtime output, prefer "get_logs_by_ns".
+- When several tools look possible, choose the tool that is the best first live-state inspection for the user's current complaint. Do not choose "none" merely because the message is brief.
+
+Examples:
+User: 远程连接不上
+Return: {"selectedTool":"list_devbox_by_ns","toolInput":{}}
+
+User: Trae无法连接
+Return: {"selectedTool":"list_devbox_by_ns","toolInput":{}}
+
+User: 余额不足被释放了
+Return: {"selectedTool":"list_debt_by_ns","toolInput":{}}
+
+User: 充钱后中的项目还是找不到
+Return: {"selectedTool":"list_debt_by_ns","toolInput":{}}
+
+User: 公网域名无法访问
+Return: {"selectedTool":"list_ingress_by_ns","toolInput":{}}
+
+User: 如何查看应用的对外ip？
+Return: {"selectedTool":"list_ingress_by_ns","toolInput":{}}
+
+User: ingress
+Return: {"selectedTool":"list_ingress_by_ns","toolInput":{}}
+
+User: 谢谢，知道了
+Return: {"selectedTool":"none","toolInput":{}}
 
 Output Format:
 You MUST return a strictly valid JSON object. No markdown.
