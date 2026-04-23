@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express';
+import * as fs from 'fs';
+import * as k8s from '@kubernetes/client-node';
 import { z } from 'zod';
-import { getAgentRunnable, AgentState, SUPPORTED_ZONES } from './agent/graph';
+import { getAgentRunnable, AgentState, SUPPORTED_ZONES, ZONE_KUBECONFIG_MAP } from './agent/graph';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +25,24 @@ const SkillsPayloadSchema = z
 
 function pickQueryString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function decodeRequestKubeconfig(authHeader: string): string {
+  const encoded = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : authHeader;
+
+  return decodeURIComponent(encoded).trim();
+}
+
+function isValidKubeconfig(kubeconfig: string): boolean {
+  try {
+    const kubeConfig = new k8s.KubeConfig();
+    kubeConfig.loadFromString(kubeconfig);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -79,6 +99,23 @@ function getSkillsResponseStatus(finalResult: unknown): number {
 app.post('/api/skills', async (req: Request, res: Response) => {
   try {
     const body = SkillsPayloadSchema.parse(req.body ?? {});
+    let requestKubeconfig: string | undefined;
+    const authHeader = req.header('authorization');
+
+    if (authHeader) {
+      try {
+        requestKubeconfig = decodeRequestKubeconfig(authHeader);
+      } catch {
+        return res
+          .status(400)
+          .json({ error: 'invalid Authorization header kubeconfig encoding' });
+      }
+
+      if (!requestKubeconfig || !isValidKubeconfig(requestKubeconfig)) {
+        return res.status(400).json({ error: 'invalid kubeconfig content in Authorization header' });
+      }
+    }
+
     // zone/namespace 只认 URL query；body 里同名字段一律忽略
     const zone = (pickQueryString(req.query.zone) ?? '').trim();
     const namespace = (pickQueryString(req.query.namespace) ?? '').trim();
@@ -95,6 +132,14 @@ app.post('/api/skills', async (req: Request, res: Response) => {
       });
     }
 
+    const localKubeconfigPath = ZONE_KUBECONFIG_MAP[zone];
+
+    if (!requestKubeconfig && !fs.existsSync(localKubeconfigPath)) {
+      return res.status(404).json({
+        error: `kubeconfig not found for zone: ${zone}; provide Authorization header kubeconfig or configure local kubeconfig file`,
+      });
+    }
+
     const initialState: AgentState = {
       zone,
       namespace,
@@ -105,6 +150,7 @@ app.post('/api/skills', async (req: Request, res: Response) => {
       historyMessages: body.historyMessages ?? '',
       latestMessage: body.latestMessage ?? '',
       latestMessageImages: body.latestMessageImages ?? [],
+      requestKubeconfig,
     };
 
     console.error(`[HTTP] /api/skills zone=${zone} namespace=${namespace}`);

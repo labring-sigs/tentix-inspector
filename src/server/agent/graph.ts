@@ -184,6 +184,7 @@ export interface AgentState {
   historyMessages: string;
   latestMessage: string;
   latestMessageImages: string[];
+  requestKubeconfig?: string;
 
   k8sClient?: KubernetesClient;
   selectedTool?: ToolName;
@@ -405,16 +406,32 @@ const structuredRouterWithRaw = llm.withStructuredOutput(routerDecisionSchema, {
 
 // --- Node 1: Init ---
 async function initContextNode(state: AgentState): Promise<Partial<AgentState>> {
+  const requestKubeconfig = (state.requestKubeconfig ?? '').trim();
+  const namespace = (state.namespace || '').trim();
+
+  if (!namespace.startsWith('ns-') || namespace.length <= 3) {
+    throw new Error('[Agent] Invalid namespace format, expected ns-xxx');
+  }
+
+  if (requestKubeconfig) {
+    console.log('[Agent] Init request-scoped KubernetesClient from Authorization header');
+    logDevelopment(
+      '[Agent] Request kubeconfig summary:',
+      JSON.stringify(buildKubeconfigSummary(requestKubeconfig))
+    );
+
+    const requestClient = new KubernetesClient(undefined, requestKubeconfig);
+    return { k8sClient: requestClient };
+  }
+
   const selectedZone = (state.zone || '').trim();
   const kubeconfigPath = ZONE_KUBECONFIG_MAP[selectedZone];
 
   if (!kubeconfigPath) {
     throw new Error(`[Agent] Unsupported zone: ${selectedZone}`);
   }
-
-  const namespace = (state.namespace || '').trim();
-  if (!namespace.startsWith('ns-') || namespace.length <= 3) {
-    throw new Error('[Agent] Invalid namespace format, expected ns-xxx');
+  if (!fs.existsSync(kubeconfigPath)) {
+    throw new Error(`[Agent] Local kubeconfig file not found for zone: ${selectedZone}`);
   }
 
   const userName = namespace.slice(3); // ns-xxx -> xxx
@@ -590,6 +607,7 @@ export async function getAgentRunnable(): Promise<AgentRunnable> {
     historyMessages: Annotation(),
     latestMessage: Annotation(),
     latestMessageImages: Annotation(),
+    requestKubeconfig: Annotation(),
 
     k8sClient: Annotation(),
     selectedTool: Annotation(),

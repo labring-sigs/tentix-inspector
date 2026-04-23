@@ -2,6 +2,7 @@ import * as k8s from '@kubernetes/client-node';
 import * as path from 'path';
 
 const K8S_REQUEST_TIMEOUT_MS = Number(process.env.K8S_REQUEST_TIMEOUT_MS ?? 60_000);
+const DEFAULT_KUBECONFIG_PATH = path.join(process.cwd(), 'kubeconfig', 'hzh-kubeconfig');
 
 function attachRequestTimeout(
   client:
@@ -116,7 +117,47 @@ export class KubernetesClient {
   }
 }
 
-// Export a singleton instance with the project's kubeconfig
-export const kubernetesClient = new KubernetesClient(
-  path.join(process.cwd(), 'kubeconfig', 'hzh-kubeconfig')
-);
+type DefaultKubernetesClientFacade = Pick<
+  KubernetesClient,
+  | 'getApiClient'
+  | 'getCustomObjectsApi'
+  | 'getNetworkingV1Api'
+  | 'getBatchV1Api'
+  | 'getAppsV1Api'
+  | 'testConnection'
+  | 'getCurrentContext'
+>;
+
+let defaultKubernetesClientInstance: KubernetesClient | null = null;
+
+function getDefaultKubernetesClient(): KubernetesClient {
+  if (!defaultKubernetesClientInstance) {
+    defaultKubernetesClientInstance = new KubernetesClient(DEFAULT_KUBECONFIG_PATH);
+  }
+
+  return defaultKubernetesClientInstance;
+}
+
+export const kubernetesClient: DefaultKubernetesClientFacade = {
+  getApiClient() {
+    return getDefaultKubernetesClient().getApiClient();
+  },
+  getCustomObjectsApi() {
+    return getDefaultKubernetesClient().getCustomObjectsApi();
+  },
+  getNetworkingV1Api() {
+    return getDefaultKubernetesClient().getNetworkingV1Api();
+  },
+  getBatchV1Api() {
+    return getDefaultKubernetesClient().getBatchV1Api();
+  },
+  getAppsV1Api() {
+    return getDefaultKubernetesClient().getAppsV1Api();
+  },
+  testConnection() {
+    return getDefaultKubernetesClient().testConnection();
+  },
+  getCurrentContext() {
+    return getDefaultKubernetesClient().getCurrentContext();
+  },
+};
