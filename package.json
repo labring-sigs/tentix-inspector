@@ -1,7 +1,7 @@
 {
-  "name": "sealos-sre-agent",
+  "name": "tentix-inspector",
   "version": "2.6.0",
-  "description": "Sealos SRE Agent with MCP protocol support (v2.6 Stable)",
+  "description": "Tentix plugin for Sealos namespace diagnostics and support-ticket triage",
   "main": "dist/server/index.js",
   "scripts": {
     "build": "tsc",
@@ -14,11 +14,11 @@
     "watch": "tsc --watch"
   },
   "keywords": [
+    "tentix",
     "sealos",
-    "sre",
     "kubernetes",
-    "mcp",
-    "agent"
+    "diagnostics",
+    "inspector"
   ],
   "author": "Sealos SRE Team",
   "license": "MIT",

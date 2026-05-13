@@ -1,6 +1,6 @@
-# Sealos SRE Agent
+# Tentix Inspector
 
-面向 Sealos 场景的 Kubernetes 查询 Agent。当前项目以 HTTP 服务形式运行，通过 `POST /api/skills` 接收工单上下文、`zone` 和 `namespace`，先从对应区域集群获取用户 kubeconfig，再由 LLM 在预置工具中选择最合适的查询动作，最终返回结构化 JSON 结果。
+面向 Tentix 插件场景的 Sealos/Kubernetes namespace 诊断服务。当前项目以 HTTP 服务形式运行，通过 `POST /api/skills` 接收工单上下文、`zone` 和 `namespace`，先从对应区域集群获取用户 kubeconfig，再由 LLM 在预置工具中选择最合适的查询动作，最终返回结构化 JSON 结果。
 
 当前维护的主入口是 `src/server/http-server.ts`。仓库中保留了历史 `src/server/index.ts`（MCP/stdio 入口），但它已被 `tsconfig.json` 排除，不属于当前默认运行路径。
 
@@ -151,7 +151,7 @@ npm run start:http
 构建镜像：
 
 ```bash
-docker build -t sealos-sre-agent:local .
+docker build -t tentix-inspector:local .
 ```
 
 运行容器：
@@ -160,7 +160,7 @@ docker build -t sealos-sre-agent:local .
 docker run --rm -p 3000:3000 \
   --env-file .env \
   -v "$PWD/kubeconfig:/app/kubeconfig:ro" \
-  sealos-sre-agent:local
+  tentix-inspector:local
 ```
 
 说明：
