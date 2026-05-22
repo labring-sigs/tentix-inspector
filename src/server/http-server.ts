@@ -11,6 +11,30 @@ const INSPECTOR_API_KEY_HEADER = 'x-tentix-inspector-key';
 const DEFAULT_JSON_BODY_LIMIT = '256kb';
 const JSON_BODY_LIMIT = getJsonBodyLimit();
 const jsonBodyParser = express.json({ limit: JSON_BODY_LIMIT });
+const DEFAULT_MAX_CONCURRENT_INSPECTIONS = 4;
+const DEFAULT_MAX_PENDING_INSPECTIONS = 8;
+const DEFAULT_PENDING_INSPECTION_TIMEOUT_MS = 3000;
+const MAX_CONCURRENT_INSPECTIONS = getPositiveIntegerEnv(
+  'MAX_CONCURRENT_INSPECTIONS',
+  DEFAULT_MAX_CONCURRENT_INSPECTIONS
+);
+const MAX_PENDING_INSPECTIONS = getNonNegativeIntegerEnv(
+  'MAX_PENDING_INSPECTIONS',
+  DEFAULT_MAX_PENDING_INSPECTIONS
+);
+const PENDING_INSPECTION_TIMEOUT_MS = getPositiveIntegerEnv(
+  'PENDING_INSPECTION_TIMEOUT_MS',
+  DEFAULT_PENDING_INSPECTION_TIMEOUT_MS
+);
+
+type InspectionSlotRelease = () => void;
+type PendingInspection = {
+  resolve: (release: InspectionSlotRelease | null) => void;
+  timer: ReturnType<typeof setTimeout>;
+};
+
+let activeInspections = 0;
+const pendingInspections: PendingInspection[] = [];
 
 const SkillsPayloadSchema = z
   .object({
@@ -61,6 +85,36 @@ function getJsonBodyLimit(): string {
 
   console.error(`[HTTP] invalid JSON_BODY_LIMIT="${limit}", fallback to ${DEFAULT_JSON_BODY_LIMIT}`);
   return DEFAULT_JSON_BODY_LIMIT;
+}
+
+function getPositiveIntegerEnv(name: string, fallback: number): number {
+  const rawValue = process.env[name]?.trim();
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const value = Number(rawValue);
+  if (Number.isInteger(value) && value > 0) {
+    return value;
+  }
+
+  console.error(`[HTTP] invalid ${name}="${rawValue}", fallback to ${fallback}`);
+  return fallback;
+}
+
+function getNonNegativeIntegerEnv(name: string, fallback: number): number {
+  const rawValue = process.env[name]?.trim();
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const value = Number(rawValue);
+  if (Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+
+  console.error(`[HTTP] invalid ${name}="${rawValue}", fallback to ${fallback}`);
+  return fallback;
 }
 
 function safeEqualSecret(actual: string, expected: string): boolean {
@@ -175,6 +229,75 @@ function handleJsonParseError(
   next(error);
 }
 
+function getInspectionRetryAfterSeconds(): string {
+  return String(Math.max(1, Math.ceil(PENDING_INSPECTION_TIMEOUT_MS / 1000)));
+}
+
+function sendInspectionBusyResponse(res: Response, zone: string, namespace: string): void {
+  console.error('[HTTP] /api/skills concurrency limit reached:', {
+    zone,
+    namespace,
+    active: activeInspections,
+    pending: pendingInspections.length,
+    maxConcurrent: MAX_CONCURRENT_INSPECTIONS,
+    maxPending: MAX_PENDING_INSPECTIONS,
+  });
+  res.setHeader('Retry-After', getInspectionRetryAfterSeconds());
+  res.status(429).json({ error: 'too many concurrent inspection requests' });
+}
+
+function createInspectionSlotRelease(): InspectionSlotRelease {
+  let released = false;
+
+  return () => {
+    if (released) {
+      return;
+    }
+
+    released = true;
+    releaseInspectionSlot();
+  };
+}
+
+function releaseInspectionSlot(): void {
+  activeInspections = Math.max(activeInspections - 1, 0);
+
+  const next = pendingInspections.shift();
+  if (!next) {
+    return;
+  }
+
+  clearTimeout(next.timer);
+  activeInspections += 1;
+  next.resolve(createInspectionSlotRelease());
+}
+
+function acquireInspectionSlot(): Promise<InspectionSlotRelease | null> {
+  if (activeInspections < MAX_CONCURRENT_INSPECTIONS) {
+    activeInspections += 1;
+    return Promise.resolve(createInspectionSlotRelease());
+  }
+
+  if (pendingInspections.length >= MAX_PENDING_INSPECTIONS) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const pendingInspection: PendingInspection = {
+      resolve,
+      timer: setTimeout(() => {
+        const index = pendingInspections.indexOf(pendingInspection);
+        if (index >= 0) {
+          pendingInspections.splice(index, 1);
+        }
+        resolve(null);
+      }, PENDING_INSPECTION_TIMEOUT_MS),
+    };
+
+    pendingInspections.push(pendingInspection);
+  });
+}
+
 app.post('/api/skills', authenticateInspectorRequest, jsonBodyParser, async (req: Request, res: Response) => {
   try {
     const body = SkillsPayloadSchema.parse(req.body ?? {});
@@ -232,19 +355,29 @@ app.post('/api/skills', authenticateInspectorRequest, jsonBodyParser, async (req
       requestKubeconfig,
     };
 
-    console.error(`[HTTP] /api/skills zone=${zone} namespace=${namespace}`);
-
-    const runnable = await getAgentRunnable();
-    const finalState = await runnable.invoke(initialState);
-    const finalResult = finalState.finalResult ?? null;
-
-    if (isRecord(finalResult) && finalResult.tool === 'none') {
-      return res.status(204).end();
+    const releaseInspection = await acquireInspectionSlot();
+    if (!releaseInspection) {
+      sendInspectionBusyResponse(res, zone, namespace);
+      return;
     }
 
-    const status = getSkillsResponseStatus(finalResult);
+    try {
+      console.error(`[HTTP] /api/skills zone=${zone} namespace=${namespace}`);
 
-    res.status(status).json(finalResult);
+      const runnable = await getAgentRunnable();
+      const finalState = await runnable.invoke(initialState);
+      const finalResult = finalState.finalResult ?? null;
+
+      if (isRecord(finalResult) && finalResult.tool === 'none') {
+        return res.status(204).end();
+      }
+
+      const status = getSkillsResponseStatus(finalResult);
+
+      res.status(status).json(finalResult);
+    } finally {
+      releaseInspection();
+    }
   } catch (error) {
     console.error('[HTTP] /api/skills error:', error);
     const status = looksLikeTimeout(error) ? 504 : 500;
