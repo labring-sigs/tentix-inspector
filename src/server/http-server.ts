@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import { timingSafeEqual } from 'crypto';
+import express, { NextFunction, Request, Response } from 'express';
 import * as fs from 'fs';
 import * as k8s from '@kubernetes/client-node';
 import { z } from 'zod';
@@ -6,6 +7,7 @@ import { getAgentRunnable, AgentState, SUPPORTED_ZONES, ZONE_KUBECONFIG_MAP } fr
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const INSPECTOR_API_KEY_HEADER = 'x-tentix-inspector-key';
 
 app.use(express.json());
 
@@ -47,6 +49,50 @@ function isValidKubeconfig(kubeconfig: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function safeEqualSecret(actual: string, expected: string): boolean {
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
+function getConfiguredInspectorApiKey(): string {
+  return (process.env.TENTIX_INSPECTOR_API_KEY ?? '').trim();
+}
+
+function logInspectorAuthFailure(req: Request, reason: string): void {
+  console.error('[HTTP] /api/skills auth failed:', {
+    reason,
+    ip: req.ip,
+    zone: pickQueryString(req.query.zone) ?? '',
+    namespace: pickQueryString(req.query.namespace) ?? '',
+    userAgent: req.header('user-agent') ?? '',
+  });
+}
+
+function authenticateInspectorRequest(req: Request, res: Response, next: NextFunction): void {
+  const expectedApiKey = getConfiguredInspectorApiKey();
+
+  if (!expectedApiKey) {
+    logInspectorAuthFailure(req, 'server_auth_not_configured');
+    res.status(500).json({ error: 'server auth is not configured' });
+    return;
+  }
+
+  const actualApiKey = (req.header(INSPECTOR_API_KEY_HEADER) ?? '').trim();
+
+  if (!actualApiKey || !safeEqualSecret(actualApiKey, expectedApiKey)) {
+    logInspectorAuthFailure(req, actualApiKey ? 'invalid_api_key' : 'missing_api_key');
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
+
+  next();
 }
 
 const SUPPORTED_ZONE_SET = new Set(SUPPORTED_ZONES);
@@ -96,7 +142,7 @@ function getSkillsResponseStatus(finalResult: unknown): number {
   return 200;
 }
 
-app.post('/api/skills', async (req: Request, res: Response) => {
+app.post('/api/skills', authenticateInspectorRequest, async (req: Request, res: Response) => {
   try {
     const body = SkillsPayloadSchema.parse(req.body ?? {});
     let requestKubeconfig: string | undefined;
