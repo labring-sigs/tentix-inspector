@@ -8,8 +8,9 @@ import { getAgentRunnable, AgentState, SUPPORTED_ZONES, ZONE_KUBECONFIG_MAP } fr
 const app = express();
 const PORT = process.env.PORT || 3000;
 const INSPECTOR_API_KEY_HEADER = 'x-tentix-inspector-key';
-
-app.use(express.json());
+const DEFAULT_JSON_BODY_LIMIT = '256kb';
+const JSON_BODY_LIMIT = getJsonBodyLimit();
+const jsonBodyParser = express.json({ limit: JSON_BODY_LIMIT });
 
 const SkillsPayloadSchema = z
   .object({
@@ -49,6 +50,17 @@ function isValidKubeconfig(kubeconfig: string): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getJsonBodyLimit(): string {
+  const limit = (process.env.JSON_BODY_LIMIT ?? DEFAULT_JSON_BODY_LIMIT).trim();
+
+  if (/^[1-9]\d*(?:b|kb|mb)$/i.test(limit)) {
+    return limit;
+  }
+
+  console.error(`[HTTP] invalid JSON_BODY_LIMIT="${limit}", fallback to ${DEFAULT_JSON_BODY_LIMIT}`);
+  return DEFAULT_JSON_BODY_LIMIT;
 }
 
 function safeEqualSecret(actual: string, expected: string): boolean {
@@ -142,7 +154,28 @@ function getSkillsResponseStatus(finalResult: unknown): number {
   return 200;
 }
 
-app.post('/api/skills', authenticateInspectorRequest, async (req: Request, res: Response) => {
+function handleJsonParseError(
+  error: unknown,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  void req;
+
+  if (isRecord(error) && error.type === 'entity.too.large') {
+    res.status(413).json({ error: 'request body too large' });
+    return;
+  }
+
+  if (error instanceof SyntaxError) {
+    res.status(400).json({ error: 'invalid json body' });
+    return;
+  }
+
+  next(error);
+}
+
+app.post('/api/skills', authenticateInspectorRequest, jsonBodyParser, async (req: Request, res: Response) => {
   try {
     const body = SkillsPayloadSchema.parse(req.body ?? {});
     let requestKubeconfig: string | undefined;
@@ -218,6 +251,8 @@ app.post('/api/skills', authenticateInspectorRequest, async (req: Request, res: 
     res.status(status).json({ error: error instanceof Error ? error.message : 'Internal Server Error' });
   }
 });
+
+app.use(handleJsonParseError);
 
 async function startServer() {
   console.error('[HTTP Server] Initializing /api/skills only...');
