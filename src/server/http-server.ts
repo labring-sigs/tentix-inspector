@@ -208,6 +208,31 @@ function getSkillsResponseStatus(finalResult: unknown): number {
   return 200;
 }
 
+function getSafeInspectionErrorMessage(status: number): string {
+  return status === 504 ? 'inspection timed out' : 'inspection failed';
+}
+
+function sanitizeFinalResult(finalResult: unknown, status: number): unknown {
+  if (!isRecord(finalResult)) {
+    return finalResult;
+  }
+
+  const result = finalResult.result;
+  if (!isRecord(result) || result.success !== false) {
+    return finalResult;
+  }
+
+  return {
+    ...finalResult,
+    result: {
+      ...result,
+      error: {
+        message: getSafeInspectionErrorMessage(status),
+      },
+    },
+  };
+}
+
 function handleJsonParseError(
   error: unknown,
   req: Request,
@@ -337,8 +362,14 @@ app.post('/api/skills', authenticateInspectorRequest, jsonBodyParser, async (req
     const localKubeconfigPath = ZONE_KUBECONFIG_MAP[zone];
 
     if (!requestKubeconfig && !fs.existsSync(localKubeconfigPath)) {
+      console.error('[HTTP] /api/skills kubeconfig unavailable:', {
+        zone,
+        namespace,
+        hasRequestKubeconfig: Boolean(requestKubeconfig),
+        localKubeconfigPath,
+      });
       return res.status(404).json({
-        error: `kubeconfig not found for zone: ${zone}; provide Authorization header kubeconfig or configure local kubeconfig file`,
+        error: 'cluster credentials unavailable',
       });
     }
 
@@ -373,15 +404,16 @@ app.post('/api/skills', authenticateInspectorRequest, jsonBodyParser, async (req
       }
 
       const status = getSkillsResponseStatus(finalResult);
+      const responseBody = sanitizeFinalResult(finalResult, status);
 
-      res.status(status).json(finalResult);
+      res.status(status).json(responseBody);
     } finally {
       releaseInspection();
     }
   } catch (error) {
     console.error('[HTTP] /api/skills error:', error);
     const status = looksLikeTimeout(error) ? 504 : 500;
-    res.status(status).json({ error: error instanceof Error ? error.message : 'Internal Server Error' });
+    res.status(status).json({ error: getSafeInspectionErrorMessage(status) });
   }
 });
 
